@@ -1,0 +1,21 @@
+# Free scheduler: calls NOVA's job endpoint every 30 minutes.
+# Setup (repo → Settings → Secrets and variables → Actions):
+#   secret  NOVA_URL      e.g. https://nova-yourname.vercel.app
+#   secret  CRON_SECRET   same value as the app's CRON_SECRET
+name: scheduler
+on:
+  schedule:
+    - cron: "*/30 * * * *"
+  workflow_dispatch: {}
+jobs:
+  tick:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Run jobs
+        env:
+          NOVA_URL: ${{ secrets.NOVA_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          if [ -z "$NOVA_URL" ] || [ -z "$CRON_SECRET" ]; then echo "NOVA_URL / CRON_SECRET not configured — skipping"; exit 0; fi
+          curl -fsS --max-time 90 -X POST -H "Authorization: Bearer $CRON_SECRET" "$NOVA_URL/api/cron/tick" | head -c 2000
