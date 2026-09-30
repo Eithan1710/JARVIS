@@ -11,9 +11,9 @@ function encryptionKey(): Buffer {
     if (buf.length !== 32) throw new Error("ENCRYPTION_KEY must decode to 32 bytes");
     return buf;
   }
-  if (SESSION_SECRET) return createHash("sha256").update(`nova-enc:${SESSION_SECRET}`).digest();
+  if (SESSION_SECRET) return createHash("sha256").update(`jarvis-enc:${SESSION_SECRET}`).digest();
   if (NODE_ENV === "production") throw new Error("ENCRYPTION_KEY or SESSION_SECRET is required in production");
-  return createHash("sha256").update("nova-dev-only-key").digest();
+  return createHash("sha256").update("jarvis-dev-only-key").digest();
 }
 
 /** AES-256-GCM. Output: base64(iv | tag | ciphertext). */

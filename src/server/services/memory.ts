@@ -1,101 +1,100 @@
 import "server-only";
-import { and, desc, eq, ilike, inArray, or } from "drizzle-orm";
-import { z } from "zod";
+import { and, desc, eq, inArray, or, sql } from "drizzle-orm";
 import type { UserContext } from "../context";
 import { getDb } from "../db/client";
 import { memories, type MemoryKind } from "../db/schema";
-import { notFound } from "../api/handler";
-import { searchTerms } from "./journal";
+import { likeEscape, normalizeFact, scoreText, searchTerms } from "./text";
 
-export const memoryInput = z.object({
-  kind: z.enum(["fact", "preference", "goal", "event", "pattern"]),
-  content: z.string().trim().min(2).max(500),
-  validFrom: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullish(),
-});
-export const memoryPatch = z.object({
-  content: z.string().trim().min(2).max(500).optional(),
-  kind: z.enum(["fact", "preference", "goal", "event", "pattern"]).optional(),
-  status: z.enum(["active", "rejected", "archived"]).optional(),
-});
+export type Memory = typeof memories.$inferSelect;
 
-export type MemoryRow = typeof memories.$inferSelect;
+export const MEMORY_KINDS: MemoryKind[] = ["preference", "fact", "project", "person", "instruction", "routine", "other"];
 
-export async function listMemories(ctx: UserContext, opts: { status?: MemoryRow["status"][] } = {}) {
+export async function listMemories(ctx: UserContext, limit = 80): Promise<Memory[]> {
   const db = await getDb();
-  const statuses = opts.status ?? ["active", "proposed"];
   return db
     .select()
     .from(memories)
-    .where(and(eq(memories.userId, ctx.userId), inArray(memories.status, statuses)))
-    .orderBy(desc(memories.updatedAt));
+    .where(and(eq(memories.userId, ctx.userId), eq(memories.status, "active")))
+    .orderBy(desc(memories.importance), desc(memories.updatedAt))
+    .limit(limit);
 }
 
-/** User-created memories are active immediately — the user is the source of truth. */
-export async function createMemory(ctx: UserContext, input: z.infer<typeof memoryInput>) {
+export interface SaveMemoryInput {
+  content: string;
+  kind?: MemoryKind;
+  importance?: number;
+  source?: "explicit" | "extracted";
+  sourceMessageId?: string | null;
+  /** Replace this memory instead of adding a new one. */
+  replaceId?: string;
+}
+
+/** Save a memory, merging with an existing near-identical one instead of duplicating. */
+export async function saveMemory(ctx: UserContext, m: SaveMemoryInput): Promise<{ memory: Memory; created: boolean }> {
   const db = await getDb();
+  const content = m.content.trim().slice(0, 600);
+  const importance = Math.min(5, Math.max(1, Math.round(m.importance ?? (m.source === "explicit" ? 4 : 3))));
+  if (m.replaceId) {
+    const [row] = await db
+      .update(memories)
+      .set({ content, kind: m.kind, importance, source: m.source })
+      .where(and(eq(memories.id, m.replaceId), eq(memories.userId, ctx.userId)))
+      .returning();
+    if (row) return { memory: row, created: false };
+  }
+  const key = normalizeFact(content);
+  const existing = await listMemories(ctx, 300);
+  const dup = existing.find((e) => normalizeFact(e.content) === key);
+  if (dup) {
+    const [row] = await db
+      .update(memories)
+      .set({ importance: Math.max(dup.importance, importance), kind: m.kind ?? dup.kind })
+      .where(eq(memories.id, dup.id))
+      .returning();
+    return { memory: row, created: false };
+  }
   const [row] = await db
     .insert(memories)
-    .values({ ...input, userId: ctx.userId, status: "active", source: "user", confidence: "high", confirmedAt: new Date() })
+    .values({ userId: ctx.userId, content, kind: m.kind ?? "fact", importance, source: m.source ?? "extracted", sourceMessageId: m.sourceMessageId ?? null })
     .returning();
-  return row;
+  return { memory: row, created: true };
 }
 
-/**
- * AI/insight-originated memories are only ever *proposed*. They become part of the model of
- * the user only after explicit confirmation. Near-duplicates are skipped.
- */
-export async function proposeMemories(
-  ctx: UserContext,
-  items: { kind: MemoryKind; content: string; confidence?: "high" | "medium" | "low" }[],
-  source: string,
-  sourceRef: Record<string, unknown>,
-) {
-  if (!items.length || !ctx.settings.ai.proposeMemories) return [];
-  const db = await getDb();
-  const existing = await listMemories(ctx, { status: ["active", "proposed", "rejected"] });
-  const norm = (s: string) => s.replace(/[^\p{L}\p{N}]/gu, "");
-  const seen = new Set(existing.map((m) => norm(m.content)));
-  const fresh = items.filter((i) => i.content.trim().length >= 4 && !seen.has(norm(i.content))).slice(0, 3);
-  if (!fresh.length) return [];
-  return db
-    .insert(memories)
-    .values(fresh.map((i) => ({ userId: ctx.userId, kind: i.kind, content: i.content.trim(), status: "proposed" as const, source, sourceRef, confidence: i.confidence ?? "medium" })))
-    .returning();
-}
-
-export async function updateMemory(ctx: UserContext, id: string, patch: z.infer<typeof memoryPatch>) {
-  const db = await getDb();
-  const values: Partial<typeof memories.$inferInsert> = { ...patch };
-  if (patch.status === "active") values.confirmedAt = new Date();
-  const [row] = await db.update(memories).set(values).where(and(eq(memories.id, id), eq(memories.userId, ctx.userId))).returning();
-  if (!row) throw notFound("הזיכרון");
-  return row;
-}
-
-export async function deleteMemory(ctx: UserContext, id: string) {
-  const db = await getDb();
-  await db.delete(memories).where(and(eq(memories.id, id), eq(memories.userId, ctx.userId)));
-}
-
-/** Keyword search over active memories; always includes stable preferences/facts when few match. */
-export async function searchMemories(ctx: UserContext, query: string, limit = 10) {
-  const db = await getDb();
+export async function searchMemories(ctx: UserContext, query: string, limit = 10): Promise<Memory[]> {
   const terms = searchTerms(query);
-  const base = and(eq(memories.userId, ctx.userId), eq(memories.status, "active"));
-  const matched = terms.length
-    ? await db
-        .select()
-        .from(memories)
-        .where(and(base, or(...terms.map((t) => ilike(memories.content, `%${t}%`)))))
-        .limit(limit)
-    : [];
-  if (matched.length >= limit) return matched;
-  const general = await db
+  if (!terms.length) return listMemories(ctx, limit);
+  const db = await getDb();
+  const rows = await db
     .select()
     .from(memories)
-    .where(and(base, inArray(memories.kind, ["preference", "fact", "goal"])))
-    .orderBy(desc(memories.updatedAt))
-    .limit(limit);
-  const ids = new Set(matched.map((m) => m.id));
-  return [...matched, ...general.filter((g) => !ids.has(g.id))].slice(0, limit);
+    .where(
+      and(
+        eq(memories.userId, ctx.userId),
+        eq(memories.status, "active"),
+        or(...terms.map((t) => sql`${memories.content} ILIKE ${`%${likeEscape(t)}%`}`)),
+      ),
+    )
+    .limit(100);
+  return rows.sort((a, b) => scoreText(b.content, terms) - scoreText(a.content, terms) || b.importance - a.importance).slice(0, limit);
+}
+
+/** Archive memories by id (never hard-deleted — history stays complete). */
+export async function forgetMemories(ctx: UserContext, ids: string[]): Promise<number> {
+  if (!ids.length) return 0;
+  const db = await getDb();
+  const rows = await db
+    .update(memories)
+    .set({ status: "archived" })
+    .where(and(eq(memories.userId, ctx.userId), inArray(memories.id, ids)))
+    .returning({ id: memories.id });
+  return rows.length;
+}
+
+export async function touchMemories(ctx: UserContext, ids: string[]) {
+  if (!ids.length) return;
+  const db = await getDb();
+  await db
+    .update(memories)
+    .set({ lastUsedAt: new Date() })
+    .where(and(eq(memories.userId, ctx.userId), inArray(memories.id, ids)));
 }

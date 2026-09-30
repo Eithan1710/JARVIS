@@ -1,4 +1,6 @@
 import { route } from "@/server/api/handler";
-import { listConversations } from "@/server/ai/orchestrator";
+import { listConversations } from "@/server/services/conversations";
 
-export const GET = route({}, (ctx) => listConversations(ctx));
+export const dynamic = "force-dynamic";
+
+export const GET = route({}, async (ctx) => ({ conversations: await listConversations(ctx) }));

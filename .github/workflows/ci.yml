@@ -1,7 +1,7 @@
 name: ci
 on:
   push:
-    branches: [main]
+    branches: ["**"]
   pull_request: {}
 jobs:
   check:
@@ -11,10 +11,16 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: npm
-      - run: npm ci
-      - run: npm run typecheck
-      - run: npm test
-      - run: npm run build
+      - run: npm install --no-audit --no-fund
+      # Errors are surfaced as annotations so they're readable without logging in.
+      - name: Typecheck
+        run: |
+          set -o pipefail; npm run typecheck 2>&1 | tee typecheck.log || { grep -E "error TS" typecheck.log | head -60 | sed -e ':a' -e 'N' -e '$!ba' -e 's/%/%25/g' -e 's/\n/%0A/g' | sed 's/^/::error::/'; exit 1; }
+      - name: Test
+        run: |
+          set -o pipefail; npm test 2>&1 | tee test.log || { grep -E "FAIL|AssertionError|Error:|expected|✗|×" test.log | head -60 | sed -e ':a' -e 'N' -e '$!ba' -e 's/%/%25/g' -e 's/\n/%0A/g' | sed 's/^/::error::/'; exit 1; }
+      - name: Build
         env:
           SESSION_SECRET: ci-only-secret-ci-only-secret-ci-only
+        run: |
+          set -o pipefail; npm run build 2>&1 | tee build.log || { grep -iE "error|failed|cannot|not found|type" build.log | head -60 | sed -e ':a' -e 'N' -e '$!ba' -e 's/%/%25/g' -e 's/\n/%0A/g' | sed 's/^/::error::/'; exit 1; }

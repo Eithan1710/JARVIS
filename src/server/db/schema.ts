@@ -1,38 +1,36 @@
 /**
- * NOVA data model.
+ * JARVIS data model (Postgres schema `jarvis`).
  *
- * Design principles:
- *  - Everything lives in a dedicated Postgres schema (`nova`) so the app can share a
- *    database with other projects without touching their tables.
- *  - History over state: facts are stored as dated events/records, never overwritten
- *    summaries. Derived values are recomputed from source rows.
- *  - Provenance: every data row carries `source` and, when imported, a link to the raw
- *    `imported_records` row it came from.
- *  - Single user today, multi-user ready: every top-level row carries `user_id`.
+ *  - History is append-only: messages, prompts, tool_calls and worker_runs record everything
+ *    JARVIS did, so the user can search it later. Nothing is silently discarded.
+ *  - Long-term memory (`memories`) is separate from history: a small, curated set of facts.
+ *  - Every user-owned row carries `user_id` → per-user isolation is a WHERE clause away,
+ *    and every service receives a UserContext rather than reaching for "the user".
+ *
+ * The SQL that creates these tables lives in ./migrations.ts and must be kept in sync.
  */
-import { sql } from "drizzle-orm";
 import {
   boolean,
   date,
-  doublePrecision,
   index,
   integer,
   jsonb,
   pgSchema,
-  primaryKey,
   smallint,
   text,
   timestamp,
   uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
+import type { RecurrenceRule } from "@/lib/recurrence";
 
-export const nova = pgSchema("nova");
+export const jarvis = pgSchema("jarvis");
 
 const id = () => uuid("id").primaryKey().defaultRandom();
-const createdAt = () => timestamp("created_at", { withTimezone: true }).notNull().defaultNow();
+const ts = (name: string) => timestamp(name, { withTimezone: true });
+const createdAt = () => ts("created_at").notNull().defaultNow();
 const updatedAt = () =>
-  timestamp("updated_at", { withTimezone: true })
+  ts("updated_at")
     .notNull()
     .defaultNow()
     .$onUpdate(() => new Date());
@@ -41,605 +39,325 @@ const userRef = () =>
     .notNull()
     .references(() => users.id, { onDelete: "cascade" });
 
-/* ------------------------------------------------------------------ */
-/* Identity                                                            */
-/* ------------------------------------------------------------------ */
+/* ─────────────────────────────── identity ─────────────────────────────── */
 
-export const users = nova.table("users", {
+export const users = jarvis.table("users", {
   id: id(),
   displayName: text("display_name").notNull().default(""),
   timezone: text("timezone").notNull().default("Asia/Jerusalem"),
-  locale: text("locale").notNull().default("he-IL"),
-  /** Free-form settings validated by `src/lib/settings.ts`. */
+  locale: text("locale").notNull().default("he"),
   settings: jsonb("settings").$type<Record<string, unknown>>().notNull().default({}),
   createdAt: createdAt(),
   updatedAt: updatedAt(),
 });
 
-/* ------------------------------------------------------------------ */
-/* Habits                                                              */
-/* ------------------------------------------------------------------ */
+/* ─────────────────────────────── history ──────────────────────────────── */
 
-export const habits = nova.table(
-  "habits",
+export const conversations = jarvis.table(
+  "conversations",
   {
     id: id(),
     userId: userRef(),
-    name: text("name").notNull(),
-    description: text("description"),
-    icon: text("icon"),
-    color: text("color"),
-    /** "main" = planned activity, "side" = supporting daily habit. */
-    tier: text("tier").$type<"main" | "side">().notNull().default("main"),
-    /** boolean = done/not done, quantity = numeric value against a target. */
-    kind: text("kind").$type<"boolean" | "quantity">().notNull().default("boolean"),
-    unit: text("unit"),
-    targetValue: doublePrecision("target_value"),
-    /** daily | specific_days (scheduleDays) | weekly_count (N times per week, any day) */
-    frequency: text("frequency").$type<"daily" | "specific_days" | "weekly_count">().notNull().default("daily"),
-    /** 0=Sunday … 6=Saturday */
-    scheduleDays: smallint("schedule_days").array().notNull().default(sql`'{0,1,2,3,4,5,6}'::smallint[]`),
-    weeklyTarget: smallint("weekly_target"),
-    /** HH:MM local time the habit usually happens. */
-    preferredTime: text("preferred_time"),
-    /** Human label shown next to the habit, e.g. "18:00–19:30". */
-    timeLabel: text("time_label"),
-    reminderEnabled: boolean("reminder_enabled").notNull().default(false),
-    /** Links the habit to a metric key so imported data can auto-complete it. */
-    metricKey: text("metric_key"),
-    sortOrder: integer("sort_order").notNull().default(0),
-    startDate: date("start_date"),
-    archivedAt: timestamp("archived_at", { withTimezone: true }),
-    source: text("source").notNull().default("manual"),
+    title: text("title"),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
+    lastMessageAt: ts("last_message_at").notNull().defaultNow(),
+    archivedAt: ts("archived_at"),
   },
-  (t) => [index("habits_user_idx").on(t.userId)],
+  (t) => [index("conversations_user_recent_idx").on(t.userId, t.lastMessageAt)],
 );
 
-export type HabitStatus = "completed" | "partial" | "missed" | "skipped";
+export type MessageRole = "user" | "assistant";
+export type MessageKind = "chat" | "reminder" | "habit" | "goal_checkin" | "notice";
 
-/** One row per habit per local date. The row is the day's outcome; the table is the history. */
-export const habitEvents = nova.table(
-  "habit_events",
+export const messages = jarvis.table(
+  "messages",
   {
     id: id(),
     userId: userRef(),
-    habitId: uuid("habit_id")
+    conversationId: uuid("conversation_id")
       .notNull()
-      .references(() => habits.id, { onDelete: "cascade" }),
-    date: date("date").notNull(),
-    status: text("status").$type<HabitStatus>().notNull(),
-    value: doublePrecision("value"),
-    note: text("note"),
-    /** When it actually happened (used to learn typical times). */
-    occurredAt: timestamp("occurred_at", { withTimezone: true }).notNull().defaultNow(),
-    /** manual | system (auto "missed") | integration id | demo */
-    source: text("source").notNull().default("manual"),
+      .references(() => conversations.id, { onDelete: "cascade" }),
+    role: text("role").$type<MessageRole>().notNull(),
+    content: text("content").notNull(),
+    inputMode: text("input_mode").$type<"text" | "voice" | "system">().notNull().default("text"),
+    kind: text("kind").$type<MessageKind>().notNull().default("chat"),
+    meta: jsonb("meta").$type<Record<string, unknown>>().notNull().default({}),
     createdAt: createdAt(),
-    updatedAt: updatedAt(),
   },
-  (t) => [
-    uniqueIndex("habit_events_habit_date_uq").on(t.habitId, t.date),
-    index("habit_events_user_date_idx").on(t.userId, t.date),
-  ],
+  (t) => [index("messages_conversation_idx").on(t.conversationId, t.createdAt), index("messages_user_idx").on(t.userId, t.createdAt)],
 );
 
-/* ------------------------------------------------------------------ */
-/* Goals                                                               */
-/* ------------------------------------------------------------------ */
+/** Every model call: leader steps, workers, memory extraction, titles, transcription. */
+export const prompts = jarvis.table(
+  "prompts",
+  {
+    id: id(),
+    userId: userRef(),
+    conversationId: uuid("conversation_id"),
+    messageId: uuid("message_id"),
+    purpose: text("purpose").notNull(),
+    provider: text("provider"),
+    model: text("model"),
+    system: text("system").notNull().default(""),
+    input: jsonb("input").$type<unknown>().notNull().default([]),
+    output: text("output"),
+    status: text("status").$type<"ok" | "error">().notNull(),
+    error: text("error"),
+    inputTokens: integer("input_tokens"),
+    outputTokens: integer("output_tokens"),
+    latencyMs: integer("latency_ms"),
+    createdAt: createdAt(),
+  },
+  (t) => [index("prompts_user_idx").on(t.userId, t.createdAt)],
+);
 
-export const goals = nova.table(
+export const toolCalls = jarvis.table(
+  "tool_calls",
+  {
+    id: id(),
+    userId: userRef(),
+    conversationId: uuid("conversation_id"),
+    messageId: uuid("message_id"),
+    tool: text("tool").notNull(),
+    args: jsonb("args").$type<unknown>().notNull().default({}),
+    result: jsonb("result").$type<unknown>(),
+    status: text("status").$type<"ok" | "error">().notNull(),
+    error: text("error"),
+    latencyMs: integer("latency_ms"),
+    createdAt: createdAt(),
+  },
+  (t) => [index("tool_calls_user_idx").on(t.userId, t.createdAt)],
+);
+
+/** A worker "skill": a role prompt the Leader wrote. Deduplicated so recurring skills accumulate. */
+export const workers = jarvis.table(
+  "workers",
+  {
+    id: id(),
+    userId: userRef(),
+    title: text("title").notNull(),
+    rolePrompt: text("role_prompt").notNull(),
+    roleHash: text("role_hash").notNull(),
+    uses: integer("uses").notNull().default(1),
+    lastUsedAt: ts("last_used_at").notNull().defaultNow(),
+    createdAt: createdAt(),
+  },
+  (t) => [uniqueIndex("workers_user_hash_idx").on(t.userId, t.roleHash)],
+);
+
+export const workerRuns = jarvis.table(
+  "worker_runs",
+  {
+    id: id(),
+    userId: userRef(),
+    workerId: uuid("worker_id")
+      .notNull()
+      .references(() => workers.id, { onDelete: "cascade" }),
+    conversationId: uuid("conversation_id"),
+    messageId: uuid("message_id"),
+    task: text("task").notNull(),
+    input: text("input").notNull().default(""),
+    output: text("output"),
+    provider: text("provider"),
+    model: text("model"),
+    status: text("status").$type<"ok" | "error">().notNull(),
+    error: text("error"),
+    latencyMs: integer("latency_ms"),
+    createdAt: createdAt(),
+  },
+  (t) => [index("worker_runs_user_idx").on(t.userId, t.createdAt)],
+);
+
+/* ─────────────────────────────── memory ───────────────────────────────── */
+
+export type MemoryKind = "preference" | "fact" | "project" | "person" | "instruction" | "routine" | "other";
+
+export const memories = jarvis.table(
+  "memories",
+  {
+    id: id(),
+    userId: userRef(),
+    kind: text("kind").$type<MemoryKind>().notNull().default("fact"),
+    content: text("content").notNull(),
+    importance: smallint("importance").notNull().default(3),
+    source: text("source").$type<"explicit" | "extracted">().notNull().default("extracted"),
+    status: text("status").$type<"active" | "archived">().notNull().default("active"),
+    sourceMessageId: uuid("source_message_id"),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+    lastUsedAt: ts("last_used_at"),
+  },
+  (t) => [index("memories_user_idx").on(t.userId, t.status)],
+);
+
+/* ─────────────────────────── life: goals, habits ──────────────────────── */
+
+export interface GoalMetric {
+  unit?: string;
+  start?: number;
+  target?: number;
+  current?: number;
+}
+export interface GoalProgressEntry {
+  at: string;
+  value?: number;
+  note?: string;
+}
+
+export const goals = jarvis.table(
   "goals",
   {
     id: id(),
     userId: userRef(),
     title: text("title").notNull(),
     description: text("description"),
-    /** manual (progress entries) | milestones | habits (derived from linked habit consistency) */
-    progressMode: text("progress_mode").$type<"manual" | "milestones" | "habits">().notNull().default("manual"),
-    targetValue: doublePrecision("target_value"),
-    unit: text("unit"),
-    startValue: doublePrecision("start_value"),
-    deadline: date("deadline"),
-    status: text("status").$type<"active" | "completed" | "paused" | "abandoned">().notNull().default("active"),
-    notes: text("notes"),
-    /** Metric keys that are relevant context for this goal (e.g. weight, study_minutes). */
-    metricKeys: text("metric_keys").array().notNull().default(sql`'{}'::text[]`),
-    completedAt: timestamp("completed_at", { withTimezone: true }),
-    source: text("source").notNull().default("manual"),
+    metric: jsonb("metric").$type<GoalMetric>(),
+    dueDate: date("due_date"),
+    status: text("status").$type<"active" | "done" | "abandoned">().notNull().default("active"),
+    checkInEveryDays: integer("check_in_every_days").notNull().default(7),
+    nextCheckInAt: ts("next_check_in_at"),
+    progress: jsonb("progress").$type<GoalProgressEntry[]>().notNull().default([]),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
-  (t) => [index("goals_user_idx").on(t.userId)],
+  (t) => [index("goals_user_idx").on(t.userId, t.status)],
 );
 
-export const goalMilestones = nova.table(
-  "goal_milestones",
+export interface HabitSchedule {
+  /** 0 = Sunday … 6 = Saturday. Empty/absent = every day. */
+  days?: number[];
+  /** Local "HH:MM" to remind at, or null for no reminder. */
+  time?: string | null;
+}
+
+export const habits = jarvis.table(
+  "habits",
   {
     id: id(),
-    goalId: uuid("goal_id")
-      .notNull()
-      .references(() => goals.id, { onDelete: "cascade" }),
+    userId: userRef(),
     title: text("title").notNull(),
-    dueDate: date("due_date"),
-    completedAt: timestamp("completed_at", { withTimezone: true }),
-    sortOrder: integer("sort_order").notNull().default(0),
+    description: text("description"),
+    schedule: jsonb("schedule").$type<HabitSchedule>().notNull().default({}),
+    status: text("status").$type<"active" | "paused" | "archived">().notNull().default("active"),
+    reminderId: uuid("reminder_id"),
     createdAt: createdAt(),
+    updatedAt: updatedAt(),
   },
-  (t) => [index("goal_milestones_goal_idx").on(t.goalId)],
+  (t) => [index("habits_user_idx").on(t.userId, t.status)],
 );
 
-export const goalHabits = nova.table(
-  "goal_habits",
+export const habitLogs = jarvis.table(
+  "habit_logs",
   {
-    goalId: uuid("goal_id")
-      .notNull()
-      .references(() => goals.id, { onDelete: "cascade" }),
+    id: id(),
+    userId: userRef(),
     habitId: uuid("habit_id")
       .notNull()
       .references(() => habits.id, { onDelete: "cascade" }),
-  },
-  (t) => [primaryKey({ columns: [t.goalId, t.habitId] })],
-);
-
-/** Append-only history of progress updates for a goal. */
-export const goalProgress = nova.table(
-  "goal_progress",
-  {
-    id: id(),
-    goalId: uuid("goal_id")
-      .notNull()
-      .references(() => goals.id, { onDelete: "cascade" }),
-    value: doublePrecision("value").notNull(),
+    day: date("day").notNull(),
+    status: text("status").$type<"done" | "skipped">().notNull().default("done"),
     note: text("note"),
-    recordedAt: timestamp("recorded_at", { withTimezone: true }).notNull().defaultNow(),
     createdAt: createdAt(),
   },
-  (t) => [index("goal_progress_goal_idx").on(t.goalId, t.recordedAt)],
+  (t) => [uniqueIndex("habit_logs_habit_day_idx").on(t.habitId, t.day)],
 );
 
-/* ------------------------------------------------------------------ */
-/* Check-ins & journal                                                 */
-/* ------------------------------------------------------------------ */
+/* ─────────────────────────── reminders & tasks ────────────────────────── */
 
-export const dailyCheckins = nova.table(
-  "daily_checkins",
+export type Recurrence = RecurrenceRule;
+
+export const reminders = jarvis.table(
+  "reminders",
   {
     id: id(),
     userId: userRef(),
-    date: date("date").notNull(),
-    mood: smallint("mood"),
-    energy: smallint("energy"),
-    focus: smallint("focus"),
-    note: text("note"),
-    highlight: text("highlight"),
-    tags: text("tags").array().notNull().default(sql`'{}'::text[]`),
-    source: text("source").notNull().default("manual"),
-    createdAt: createdAt(),
-    updatedAt: updatedAt(),
-  },
-  (t) => [uniqueIndex("daily_checkins_user_date_uq").on(t.userId, t.date)],
-);
-
-export const journalEntries = nova.table(
-  "journal_entries",
-  {
-    id: id(),
-    userId: userRef(),
-    date: date("date").notNull(),
-    occurredAt: timestamp("occurred_at", { withTimezone: true }).notNull().defaultNow(),
-    title: text("title"),
-    body: text("body").notNull(),
-    tags: text("tags").array().notNull().default(sql`'{}'::text[]`),
-    /** Marks entries describing an important life event. */
-    important: boolean("important").notNull().default(false),
-    source: text("source").notNull().default("manual"),
+    conversationId: uuid("conversation_id"),
+    text: text("text").notNull(),
+    dueAt: ts("due_at").notNull(),
+    recurrence: jsonb("recurrence").$type<Recurrence>(),
+    kind: text("kind").$type<"reminder" | "habit">().notNull().default("reminder"),
+    refId: uuid("ref_id"),
+    status: text("status").$type<"scheduled" | "sending" | "done" | "cancelled">().notNull().default("scheduled"),
+    lastFiredAt: ts("last_fired_at"),
+    fireCount: integer("fire_count").notNull().default(0),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
-  (t) => [index("journal_user_date_idx").on(t.userId, t.date)],
+  (t) => [index("reminders_due_idx").on(t.status, t.dueAt), index("reminders_user_idx").on(t.userId, t.status)],
 );
 
-/* ------------------------------------------------------------------ */
-/* Raw imports (provenance)                                            */
-/* ------------------------------------------------------------------ */
-
-export const integrations = nova.table(
-  "integrations",
-  {
-    id: id(),
-    userId: userRef(),
-    provider: text("provider").notNull(),
-    status: text("status").$type<"active" | "paused" | "error">().notNull().default("active"),
-    /** Non-secret configuration (e.g. latitude/longitude, username). */
-    config: jsonb("config").$type<Record<string, unknown>>().notNull().default({}),
-    /** AES-GCM encrypted JSON with secrets (tokens, private URLs). */
-    secretsEncrypted: text("secrets_encrypted"),
-    /** SHA-256 of the ingest token for webhook-style integrations. */
-    ingestTokenHash: text("ingest_token_hash"),
-    lastSyncAt: timestamp("last_sync_at", { withTimezone: true }),
-    lastError: text("last_error"),
-    createdAt: createdAt(),
-    updatedAt: updatedAt(),
-  },
-  (t) => [index("integrations_user_idx").on(t.userId), uniqueIndex("integrations_ingest_uq").on(t.ingestTokenHash)],
-);
-
-export const importedRecords = nova.table(
-  "imported_records",
-  {
-    id: id(),
-    userId: userRef(),
-    integrationId: uuid("integration_id").references(() => integrations.id, { onDelete: "set null" }),
-    provider: text("provider").notNull(),
-    externalId: text("external_id").notNull(),
-    recordType: text("record_type").notNull(),
-    raw: jsonb("raw").notNull(),
-    status: text("status").$type<"processed" | "failed" | "ignored">().notNull().default("processed"),
-    error: text("error"),
-    importedAt: timestamp("imported_at", { withTimezone: true }).notNull().defaultNow(),
-  },
-  (t) => [
-    uniqueIndex("imported_records_ext_uq").on(t.userId, t.provider, t.externalId),
-    index("imported_records_user_idx").on(t.userId, t.importedAt),
-  ],
-);
-
-/* ------------------------------------------------------------------ */
-/* Measurements                                                        */
-/* ------------------------------------------------------------------ */
-
-/**
- * Generic time series. One row per observation (a night of sleep, a workout, a day of
- * steps). `date` is the local date the observation belongs to.
- */
-export const metrics = nova.table(
-  "metrics",
-  {
-    id: id(),
-    userId: userRef(),
-    metricKey: text("metric_key").notNull(),
-    value: doublePrecision("value").notNull(),
-    unit: text("unit"),
-    date: date("date").notNull(),
-    startAt: timestamp("start_at", { withTimezone: true }),
-    endAt: timestamp("end_at", { withTimezone: true }),
-    note: text("note"),
-    source: text("source").notNull().default("manual"),
-    sourceRecordId: uuid("source_record_id").references(() => importedRecords.id, { onDelete: "set null" }),
-    /** Raw value as originally provided, when it differs from `value` (e.g. seconds → hours). */
-    rawValue: jsonb("raw_value"),
-    meta: jsonb("meta").$type<Record<string, unknown>>().notNull().default({}),
-    createdAt: createdAt(),
-  },
-  (t) => [
-    index("metrics_user_key_date_idx").on(t.userId, t.metricKey, t.date),
-    index("metrics_user_date_idx").on(t.userId, t.date),
-    uniqueIndex("metrics_source_record_uq").on(t.sourceRecordId, t.metricKey),
-  ],
-);
-
-/** User-defined metrics (built-in ones live in code: src/lib/metrics.ts). */
-export const metricDefinitions = nova.table(
-  "metric_definitions",
-  {
-    id: id(),
-    userId: userRef(),
-    key: text("key").notNull(),
-    label: text("label").notNull(),
-    unit: text("unit"),
-    category: text("category").notNull().default("other"),
-    aggregation: text("aggregation").$type<"sum" | "avg" | "last" | "max">().notNull().default("sum"),
-    higherIsBetter: boolean("higher_is_better"),
-    createdAt: createdAt(),
-  },
-  (t) => [uniqueIndex("metric_definitions_user_key_uq").on(t.userId, t.key)],
-);
-
-export const transactions = nova.table(
-  "transactions",
-  {
-    id: id(),
-    userId: userRef(),
-    date: date("date").notNull(),
-    occurredAt: timestamp("occurred_at", { withTimezone: true }),
-    amount: doublePrecision("amount").notNull(),
-    currency: text("currency").notNull().default("ILS"),
-    category: text("category").notNull().default("other"),
-    description: text("description"),
-    merchant: text("merchant"),
-    source: text("source").notNull().default("manual"),
-    sourceRecordId: uuid("source_record_id").references(() => importedRecords.id, { onDelete: "set null" }),
-    createdAt: createdAt(),
-  },
-  (t) => [index("transactions_user_date_idx").on(t.userId, t.date)],
-);
-
-export const calendarEvents = nova.table(
-  "calendar_events",
+export const tasks = jarvis.table(
+  "tasks",
   {
     id: id(),
     userId: userRef(),
     title: text("title").notNull(),
-    startAt: timestamp("start_at", { withTimezone: true }).notNull(),
-    endAt: timestamp("end_at", { withTimezone: true }).notNull(),
-    allDay: boolean("all_day").notNull().default(false),
-    location: text("location"),
-    /** meeting | personal | focus | other */
-    kind: text("kind").notNull().default("other"),
-    source: text("source").notNull().default("manual"),
-    externalId: text("external_id"),
-    integrationId: uuid("integration_id").references(() => integrations.id, { onDelete: "cascade" }),
+    notes: text("notes"),
+    dueAt: ts("due_at"),
+    status: text("status").$type<"open" | "done" | "cancelled">().notNull().default("open"),
+    priority: smallint("priority").notNull().default(2),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
+    completedAt: ts("completed_at"),
   },
-  (t) => [
-    index("calendar_user_start_idx").on(t.userId, t.startAt),
-    uniqueIndex("calendar_external_uq").on(t.userId, t.source, t.externalId),
-  ],
+  (t) => [index("tasks_user_idx").on(t.userId, t.status)],
 );
 
-/* ------------------------------------------------------------------ */
-/* Memory                                                              */
-/* ------------------------------------------------------------------ */
+/* ─────────────────────── providers & connections ──────────────────────── */
 
-export type MemoryKind = "fact" | "preference" | "goal" | "event" | "pattern";
-export type MemoryStatus = "active" | "proposed" | "rejected" | "archived";
+/** Runtime state of each AI provider (shared across serverless instances). */
+export const aiProviders = jarvis.table("ai_providers", {
+  id: text("id").primaryKey(),
+  label: text("label").notNull(),
+  enabled: boolean("enabled").notNull().default(true),
+  cooldownUntil: ts("cooldown_until"),
+  lastError: text("last_error"),
+  lastOkAt: ts("last_ok_at"),
+  day: date("day"),
+  requestsToday: integer("requests_today").notNull().default(0),
+  updatedAt: updatedAt(),
+});
 
-export const memories = nova.table(
-  "memories",
+export const connections = jarvis.table(
+  "connections",
   {
     id: id(),
     userId: userRef(),
-    kind: text("kind").$type<MemoryKind>().notNull(),
-    content: text("content").notNull(),
-    /** AI-proposed memories start as "proposed" and never become active without the user. */
-    status: text("status").$type<MemoryStatus>().notNull().default("active"),
-    confidence: text("confidence").$type<"high" | "medium" | "low">(),
-    /** user | ai_conversation | insight | system | import */
-    source: text("source").notNull().default("user"),
-    sourceRef: jsonb("source_ref").$type<Record<string, unknown>>(),
-    validFrom: date("valid_from"),
-    validTo: date("valid_to"),
-    supersedesId: uuid("supersedes_id"),
-    confirmedAt: timestamp("confirmed_at", { withTimezone: true }),
-    createdAt: createdAt(),
-    updatedAt: updatedAt(),
-  },
-  (t) => [index("memories_user_status_idx").on(t.userId, t.status)],
-);
-
-/* ------------------------------------------------------------------ */
-/* Insights & reports                                                  */
-/* ------------------------------------------------------------------ */
-
-export type EvidenceLevel = "observation" | "correlation" | "temporal_association" | "hypothesis" | "stronger_evidence";
-export type Confidence = "high" | "medium" | "low";
-
-export const insights = nova.table(
-  "insights",
-  {
-    id: id(),
-    userId: userRef(),
-    /** correlation | trend | change | streak | pattern | anomaly | hypothesis */
-    kind: text("kind").notNull(),
-    evidenceLevel: text("evidence_level").$type<EvidenceLevel>().notNull(),
-    title: text("title").notNull(),
-    summary: text("summary").notNull(),
-    body: text("body"),
-    periodStart: date("period_start"),
-    periodEnd: date("period_end"),
-    sampleSize: integer("sample_size"),
-    confidence: text("confidence").$type<Confidence>(),
-    confidenceReason: text("confidence_reason"),
-    caveats: text("caveats").array().notNull().default(sql`'{}'::text[]`),
-    /** Machine-readable subject for dedupe, e.g. "cond:sleep_hours>=7→habit_rate". */
-    fingerprint: text("fingerprint").notNull(),
-    score: doublePrecision("score").notNull().default(0),
-    status: text("status").$type<"new" | "seen" | "pinned" | "dismissed" | "expired">().notNull().default("new"),
-    generatedBy: text("generated_by").$type<"analytics" | "ai">().notNull().default("analytics"),
-    data: jsonb("data").$type<Record<string, unknown>>().notNull().default({}),
-    createdAt: createdAt(),
-    updatedAt: updatedAt(),
-  },
-  (t) => [
-    uniqueIndex("insights_user_fp_uq").on(t.userId, t.fingerprint),
-    index("insights_user_created_idx").on(t.userId, t.createdAt),
-  ],
-);
-
-export const insightEvidence = nova.table(
-  "insight_evidence",
-  {
-    id: id(),
-    insightId: uuid("insight_id")
-      .notNull()
-      .references(() => insights.id, { onDelete: "cascade" }),
-    /** comparison | series | stat | table | note */
-    kind: text("kind").notNull(),
-    label: text("label").notNull(),
-    data: jsonb("data").notNull(),
-    sortOrder: integer("sort_order").notNull().default(0),
-  },
-  (t) => [index("insight_evidence_insight_idx").on(t.insightId)],
-);
-
-/** Daily briefs and weekly reviews: deterministic facts + AI narrative, one per period. */
-export const reports = nova.table(
-  "reports",
-  {
-    id: id(),
-    userId: userRef(),
-    kind: text("kind").$type<"daily_brief" | "weekly_review">().notNull(),
-    periodStart: date("period_start").notNull(),
-    periodEnd: date("period_end").notNull(),
-    facts: jsonb("facts").$type<Record<string, unknown>>().notNull(),
-    narrative: jsonb("narrative").$type<Record<string, unknown>>(),
-    aiStatus: text("ai_status").$type<"ok" | "unavailable" | "failed" | "skipped">().notNull().default("skipped"),
-    createdAt: createdAt(),
-    updatedAt: updatedAt(),
-  },
-  (t) => [uniqueIndex("reports_user_kind_period_uq").on(t.userId, t.kind, t.periodStart)],
-);
-
-/* ------------------------------------------------------------------ */
-/* Experiments                                                         */
-/* ------------------------------------------------------------------ */
-
-export const experiments = nova.table(
-  "experiments",
-  {
-    id: id(),
-    userId: userRef(),
-    title: text("title").notNull(),
-    hypothesis: text("hypothesis"),
-    intervention: text("intervention"),
-    startDate: date("start_date").notNull(),
-    endDate: date("end_date").notNull(),
-    baselineDays: integer("baseline_days").notNull().default(21),
-    /** Keys from the day-frame (e.g. sleep_hours, mood, habit:<id>). */
-    targetKeys: text("target_keys").array().notNull().default(sql`'{}'::text[]`),
-    complianceHabitId: uuid("compliance_habit_id").references(() => habits.id, { onDelete: "set null" }),
-    status: text("status").$type<"planned" | "active" | "completed" | "cancelled">().notNull().default("planned"),
-    result: jsonb("result").$type<Record<string, unknown>>(),
-    aiSummary: jsonb("ai_summary").$type<Record<string, unknown>>(),
-    source: text("source").notNull().default("manual"),
-    createdAt: createdAt(),
-    updatedAt: updatedAt(),
-  },
-  (t) => [index("experiments_user_idx").on(t.userId)],
-);
-
-/* ------------------------------------------------------------------ */
-/* Notifications                                                       */
-/* ------------------------------------------------------------------ */
-
-export const notifications = nova.table(
-  "notifications",
-  {
-    id: id(),
-    userId: userRef(),
-    kind: text("kind").notNull(),
-    title: text("title").notNull(),
-    body: text("body").notNull(),
-    url: text("url"),
-    scheduledFor: timestamp("scheduled_for", { withTimezone: true }).notNull(),
-    sentAt: timestamp("sent_at", { withTimezone: true }),
-    readAt: timestamp("read_at", { withTimezone: true }),
-    status: text("status").$type<"pending" | "sent" | "skipped" | "failed" | "cancelled">().notNull().default("pending"),
-    /** Prevents duplicates: e.g. "habit:<id>:2026-09-29". */
-    dedupeKey: text("dedupe_key").notNull(),
-    /** Why the engine decided on this notification and time (shown to the user). */
-    reason: jsonb("reason").$type<Record<string, unknown>>().notNull().default({}),
-    habitId: uuid("habit_id").references(() => habits.id, { onDelete: "cascade" }),
-    createdAt: createdAt(),
-  },
-  (t) => [
-    uniqueIndex("notifications_user_dedupe_uq").on(t.userId, t.dedupeKey),
-    index("notifications_user_sched_idx").on(t.userId, t.scheduledFor),
-  ],
-);
-
-export const notificationEvents = nova.table(
-  "notification_events",
-  {
-    id: id(),
-    notificationId: uuid("notification_id")
-      .notNull()
-      .references(() => notifications.id, { onDelete: "cascade" }),
-    /** delivered | failed | clicked | dismissed | acted */
     type: text("type").notNull(),
-    meta: jsonb("meta").$type<Record<string, unknown>>().notNull().default({}),
-    at: timestamp("at", { withTimezone: true }).notNull().defaultNow(),
+    name: text("name").notNull().default("default"),
+    status: text("status").$type<"active" | "disabled" | "error">().notNull().default("active"),
+    config: jsonb("config").$type<Record<string, unknown>>().notNull().default({}),
+    /** AES-256-GCM encrypted JSON (tokens etc). Never returned to the client. */
+    secretEnc: text("secret_enc"),
+    lastUsedAt: ts("last_used_at"),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
   },
-  (t) => [index("notification_events_n_idx").on(t.notificationId)],
+  (t) => [uniqueIndex("connections_user_type_name_idx").on(t.userId, t.type, t.name)],
 );
 
-export const pushSubscriptions = nova.table("push_subscriptions", {
+/* ─────────────────────────────── plumbing ─────────────────────────────── */
+
+export const pushSubscriptions = jarvis.table("push_subscriptions", {
   id: id(),
   userId: userRef(),
   endpoint: text("endpoint").notNull().unique(),
   p256dh: text("p256dh").notNull(),
   auth: text("auth").notNull(),
   userAgent: text("user_agent"),
-  lastSuccessAt: timestamp("last_success_at", { withTimezone: true }),
   failureCount: integer("failure_count").notNull().default(0),
+  lastSuccessAt: ts("last_success_at"),
   createdAt: createdAt(),
 });
 
-/* ------------------------------------------------------------------ */
-/* AI                                                                  */
-/* ------------------------------------------------------------------ */
-
-export const aiConversations = nova.table(
-  "ai_conversations",
-  {
-    id: id(),
-    userId: userRef(),
-    title: text("title").notNull().default("שיחה חדשה"),
-    createdAt: createdAt(),
-    updatedAt: updatedAt(),
-  },
-  (t) => [index("ai_conversations_user_idx").on(t.userId, t.updatedAt)],
-);
-
-export const aiMessages = nova.table(
-  "ai_messages",
-  {
-    id: id(),
-    conversationId: uuid("conversation_id")
-      .notNull()
-      .references(() => aiConversations.id, { onDelete: "cascade" }),
-    role: text("role").$type<"user" | "assistant">().notNull(),
-    content: text("content").notNull(),
-    /** Structured answer (claims, evidence, caveats, plan) for assistant messages. */
-    structured: jsonb("structured").$type<Record<string, unknown>>(),
-    taskId: uuid("task_id"),
-    createdAt: createdAt(),
-  },
-  (t) => [index("ai_messages_conv_idx").on(t.conversationId, t.createdAt)],
-);
-
-/** Audit log of every external AI call: what kind of data left the system, and why. */
-export const aiTasks = nova.table(
-  "ai_tasks",
-  {
-    id: id(),
-    userId: userRef(),
-    type: text("type").notNull(),
-    status: text("status").$type<"ok" | "failed" | "fallback">().notNull(),
-    provider: text("provider"),
-    model: text("model"),
-    tier: text("tier"),
-    /** Data categories and record counts included in the context (never the content itself). */
-    dataScope: jsonb("data_scope").$type<Record<string, unknown>>().notNull().default({}),
-    contextChars: integer("context_chars"),
-    inputTokens: integer("input_tokens"),
-    outputTokens: integer("output_tokens"),
-    latencyMs: integer("latency_ms"),
-    error: text("error"),
-    createdAt: createdAt(),
-  },
-  (t) => [index("ai_tasks_user_created_idx").on(t.userId, t.createdAt)],
-);
-
-/* ------------------------------------------------------------------ */
-/* Jobs                                                                */
-/* ------------------------------------------------------------------ */
-
-export const jobRuns = nova.table(
-  "job_runs",
-  {
-    id: id(),
-    job: text("job").notNull(),
-    /** Idempotency key, e.g. "daily_brief:2026-09-29". */
-    runKey: text("run_key").notNull().unique(),
-    status: text("status").$type<"running" | "ok" | "failed">().notNull(),
-    detail: jsonb("detail").$type<Record<string, unknown>>(),
-    error: text("error"),
-    startedAt: timestamp("started_at", { withTimezone: true }).notNull().defaultNow(),
-    finishedAt: timestamp("finished_at", { withTimezone: true }),
-  },
-  (t) => [index("job_runs_job_idx").on(t.job, t.startedAt)],
-);
+export const jobRuns = jarvis.table("job_runs", {
+  id: id(),
+  job: text("job").notNull(),
+  runKey: text("run_key").notNull().unique(),
+  status: text("status").$type<"running" | "ok" | "failed">().notNull(),
+  startedAt: ts("started_at").notNull().defaultNow(),
+  finishedAt: ts("finished_at"),
+  detail: jsonb("detail").$type<Record<string, unknown>>(),
+  error: text("error"),
+});

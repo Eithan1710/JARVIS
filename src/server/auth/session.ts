@@ -4,14 +4,14 @@
  */
 import { jwtVerify, SignJWT } from "jose";
 
-export const SESSION_COOKIE = "nova_session";
+export const SESSION_COOKIE = "jarvis_session";
 export const SESSION_MAX_AGE_S = 60 * 60 * 24 * 180; // 180 days — personal device, long-lived
 
 function secretKey(): Uint8Array {
   const secret = process.env.SESSION_SECRET;
   if (!secret) {
     if (process.env.NODE_ENV === "production") throw new Error("SESSION_SECRET is required in production");
-    return new TextEncoder().encode("nova-dev-session-secret-not-for-production");
+    return new TextEncoder().encode("jarvis-dev-session-secret-not-for-production");
   }
   return new TextEncoder().encode(secret);
 }
@@ -25,14 +25,14 @@ export async function createSessionToken(uid: string): Promise<string> {
     .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt()
     .setExpirationTime(`${SESSION_MAX_AGE_S}s`)
-    .setAudience("nova")
+    .setAudience("jarvis")
     .sign(secretKey());
 }
 
 export async function verifySessionToken(token: string | undefined | null): Promise<SessionPayload | null> {
   if (!token) return null;
   try {
-    const { payload } = await jwtVerify(token, secretKey(), { audience: "nova", algorithms: ["HS256"] });
+    const { payload } = await jwtVerify(token, secretKey(), { audience: "jarvis", algorithms: ["HS256"] });
     return typeof payload.uid === "string" ? { uid: payload.uid } : null;
   } catch {
     return null;

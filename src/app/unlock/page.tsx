@@ -1,56 +1,61 @@
 "use client";
-import { Suspense, useState } from "react";
-import { useSearchParams } from "next/navigation";
-import { Lock } from "lucide-react";
-import { Logo } from "@/components/layout/logo";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/field";
+import { useState } from "react";
+import { Core } from "@/components/core";
 
-function UnlockForm() {
-  const params = useSearchParams();
+export default function Unlock() {
   const [code, setCode] = useState("");
-  const [err, setErr] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const submit = async (e: React.FormEvent) => {
+
+  async function submit(e: React.FormEvent) {
     e.preventDefault();
+    if (!code || busy) return;
     setBusy(true);
-    setErr(null);
+    setError(null);
     try {
       const res = await fetch("/api/auth/unlock", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ passcode: code }) });
-      const j = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        setErr(j?.error?.message ?? "הקוד שגוי");
-        setCode("");
+      if (res.ok) {
+        const next = new URLSearchParams(location.search).get("next");
+        location.href = next && next.startsWith("/") && !next.startsWith("//") ? next : "/";
         return;
       }
-      const next = params.get("next");
-      location.href = next && next.startsWith("/") && !next.startsWith("//") ? next : "/";
-    } catch {
-      setErr("אין חיבור לשרת");
+      const j = (await res.json().catch(() => null)) as { error?: { message?: string } } | null;
+      setError(j?.error?.message ?? "לא הצלחתי להיכנס");
+      setCode("");
     } finally {
       setBusy(false);
     }
-  };
-  return (
-    <form onSubmit={submit} className="w-full max-w-xs space-y-3">
-      <Input type="password" inputMode="text" autoComplete="current-password" autoFocus value={code} onChange={(e) => setCode(e.target.value)} placeholder="קוד גישה" className="text-center text-lg tracking-widest" aria-label="קוד גישה" />
-      {err ? <p className="text-center text-sm text-negative">{err}</p> : null}
-      <Button type="submit" block size="lg" loading={busy} disabled={!code}>
-        <Lock className="size-4" /> כניסה
-      </Button>
-    </form>
-  );
-}
+  }
 
-export default function UnlockPage() {
   return (
-    <main className="pt-safe flex min-h-dvh flex-col items-center justify-center px-6">
-      <Logo className="size-16" />
-      <h1 className="mt-5 text-2xl font-semibold">NOVA</h1>
-      <p className="mb-8 mt-1 text-[15px] text-muted">המרחב הפרטי שלך</p>
-      <Suspense>
-        <UnlockForm />
-      </Suspense>
+    <main className="relative z-10 flex min-h-[100dvh] flex-col items-center justify-center px-6" style={{ paddingTop: "var(--safe-top)", paddingBottom: "var(--safe-bottom)" }}>
+      <Core size={120} state={busy ? "thinking" : "idle"} className="mb-10" />
+      <p className="mb-8 font-[family-name:var(--font-mark)] text-[0.9rem] tracking-[0.4em] text-pearl-2" dir="ltr">
+        JARVIS
+      </p>
+      <form onSubmit={submit} className="w-full max-w-xs">
+        <label htmlFor="code" className="mb-3 block text-center text-mist">
+          קוד גישה
+        </label>
+        <input
+          id="code"
+          type="password"
+          inputMode="text"
+          autoComplete="current-password"
+          autoFocus
+          value={code}
+          onChange={(e) => setCode(e.target.value)}
+          className="composer w-full rounded-2xl px-4 py-3 text-center text-[1.1rem] tracking-[0.3em] text-pearl outline-none"
+          aria-invalid={Boolean(error)}
+          aria-describedby={error ? "err" : undefined}
+        />
+        <button type="submit" disabled={!code || busy} className="mt-4 w-full rounded-2xl bg-pearl py-3 font-medium text-abyss transition-opacity disabled:opacity-40">
+          {busy ? "בודק…" : "כניסה"}
+        </button>
+        <p id="err" role="alert" className="mt-4 min-h-6 text-center text-[0.9rem] text-danger">
+          {error}
+        </p>
+      </form>
     </main>
   );
 }

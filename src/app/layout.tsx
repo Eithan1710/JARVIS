@@ -1,14 +1,17 @@
 import type { Metadata, Viewport } from "next";
-import "@fontsource-variable/heebo";
+import { Frank_Ruhl_Libre, IBM_Plex_Sans_Hebrew, Unbounded } from "next/font/google";
 import "./globals.css";
-import { Providers } from "@/client/providers";
+
+const plex = IBM_Plex_Sans_Hebrew({ subsets: ["hebrew", "latin"], weight: ["300", "400", "500", "600"], variable: "--font-plex", display: "swap" });
+const frank = Frank_Ruhl_Libre({ subsets: ["hebrew", "latin"], variable: "--font-frank", display: "swap" });
+const unbounded = Unbounded({ subsets: ["latin"], weight: ["400", "500"], variable: "--font-unbounded", display: "swap" });
 
 export const metadata: Metadata = {
-  title: { default: "NOVA", template: "%s · NOVA" },
-  description: "מערכת הפעלה אישית: הרגלים, מטרות, נתונים ותובנות — במקום אחד, פרטי.",
-  applicationName: "NOVA",
+  title: { default: "JARVIS", template: "%s · JARVIS" },
+  description: "העוזר האישי שלך. פשוט מדברים.",
+  applicationName: "JARVIS",
   manifest: "/manifest.webmanifest",
-  appleWebApp: { capable: true, title: "NOVA", statusBarStyle: "default" },
+  appleWebApp: { capable: true, title: "JARVIS", statusBarStyle: "black-translucent" },
   formatDetection: { telephone: false, email: false, address: false },
   icons: {
     icon: [
@@ -26,16 +29,17 @@ export const viewport: Viewport = {
   viewportFit: "cover",
   interactiveWidget: "resizes-content",
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#f6f5f2" },
-    { media: "(prefers-color-scheme: dark)", color: "#0e0f11" },
+    { media: "(prefers-color-scheme: dark)", color: "#0a0f1f" },
+    { media: "(prefers-color-scheme: light)", color: "#eef1f7" },
   ],
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="he" dir="rtl" suppressHydrationWarning>
+    <html lang="he" dir="rtl" className={`${plex.variable} ${frank.variable} ${unbounded.variable}`} suppressHydrationWarning>
       <body>
-        <Providers>{children}</Providers>
+        <div className="atmosphere" aria-hidden />
+        {children}
       </body>
     </html>
   );

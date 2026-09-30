@@ -1,4 +1,11 @@
-export type ModelTier = "fast" | "balanced" | "deep";
+/** Size class of a model inside one provider. */
+export type ModelSize = "large" | "small";
+
+/**
+ * What a call is for. The router maps each role to an ordered chain of provider/model pairs,
+ * so callers never pick a provider — JARVIS does.
+ */
+export type AIRole = "leader" | "light" | "worker_fast" | "worker_deep";
 
 export interface AIMessage {
   role: "user" | "assistant";
@@ -8,8 +15,7 @@ export interface AIMessage {
 export interface AIRequest {
   system: string;
   messages: AIMessage[];
-  tier: ModelTier;
-  /** Ask the provider for a JSON object response. The caller still validates it. */
+  /** Ask for a JSON object response. The caller still validates it. */
   json?: boolean;
   temperature?: number;
   maxOutputTokens?: number;
@@ -23,7 +29,7 @@ export interface AIResponse {
   usage?: { input?: number; output?: number };
 }
 
-export type AIErrorKind = "not_configured" | "rate_limit" | "auth" | "unavailable" | "timeout" | "blocked" | "bad_response" | "disabled";
+export type AIErrorKind = "not_configured" | "rate_limit" | "auth" | "unavailable" | "timeout" | "blocked" | "bad_response";
 
 export class AIError extends Error {
   constructor(
@@ -34,18 +40,18 @@ export class AIError extends Error {
     super(message);
     this.name = "AIError";
   }
+  /** Whether trying the next provider makes sense. */
   get retryable() {
-    return this.kind === "rate_limit" || this.kind === "unavailable" || this.kind === "timeout" || this.kind === "auth" || this.kind === "bad_response";
+    return this.kind !== "blocked";
   }
 }
 
 export interface AIProvider {
   id: string;
   label: string;
-  /** Whether credentials are configured. */
   available(): boolean;
-  modelFor(tier: ModelTier): string;
-  generate(req: AIRequest): Promise<AIResponse>;
-  /** Free-tier providers may use prompts for training; surfaced in Settings. */
-  privacyNote: string;
+  model(size: ModelSize): string;
+  generate(req: AIRequest & { model: string }): Promise<AIResponse>;
+  /** Speech-to-text, when the provider supports it. */
+  transcribe?(audio: Blob, opts: { language?: string; filename?: string }): Promise<{ text: string; model: string }>;
 }

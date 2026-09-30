@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { safeEqual } from "@/server/crypto";
 import { env } from "@/server/env";
 import { jsonError } from "@/server/api/handler";
-import { runTick } from "@/server/jobs/runner";
+import { runTick } from "@/server/scheduler/tick";
 import { errorInfo, logger } from "@/server/logger";
 
 export const maxDuration = 60;

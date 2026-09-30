@@ -1,0 +1,51 @@
+# Builds the app against a throwaway Postgres, captures screenshots with Playwright and
+# publishes them to the `ci-screenshots` branch for design review.
+name: visual
+on:
+  push:
+    branches: [jarvis, "visual/**"]
+  workflow_dispatch: {}
+permissions:
+  contents: write
+jobs:
+  shoot:
+    runs-on: ubuntu-24.04
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      DATABASE_URL: postgres://postgres:postgres@localhost:5432/postgres
+      APP_PASSCODE: "1234"
+      SESSION_SECRET: visual-only-secret-visual-only-secret
+      CRON_SECRET: visual
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install --no-audit --no-fund
+      - run: npm install --no-save playwright@1 && npx playwright install --with-deps chromium
+      - run: sudo apt-get install -y fonts-noto-color-emoji postgresql-client >/dev/null
+      - run: npm run build
+      - name: Start app
+        run: |
+          (npm start > app.log 2>&1 &)
+          for i in $(seq 1 60); do curl -fs http://localhost:3000/api/health && break; sleep 1; done
+      - name: Screenshots
+        run: node scripts/visual/shoot.mjs shots
+      - name: Server log on failure
+        if: failure()
+        run: tail -80 app.log | sed -e ':a' -e 'N' -e '$!ba' -e 's/%/%25/g' -e 's/\n/%0A/g' | sed 's/^/::warning::/'
+      - name: Publish
+        run: |
+          cd shots
+          git init -q -b ci-screenshots
+          git config user.email "ci@users.noreply.github.com"
+          git config user.name "ci"
+          git add -A && git commit -qm "screenshots for ${GITHUB_SHA::7}"
+          git push -f "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${GITHUB_REPOSITORY}.git" ci-screenshots
