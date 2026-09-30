@@ -123,7 +123,8 @@ export async function runLeader(
       messages: lastRound ? [...messages, { role: "user", content: "You are out of tool rounds. Answer the user now with what you have: {\"actions\": [], \"reply\": \"…\", \"final\": true}" }] : messages,
       json: true,
       temperature: 0.4,
-      maxOutputTokens: 4096,
+      // Thinking models count reasoning against this budget; leave room for the JSON itself.
+      maxOutputTokens: 8192,
       audit: { ctx, purpose: `leader:${round}`, conversationId: input.conversationId, messageId: input.messageId },
     });
     provider = res.provider;

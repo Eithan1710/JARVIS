@@ -150,6 +150,27 @@ describe("a chat turn", () => {
   });
 });
 
+describe("provider failover", () => {
+  it("moves to the next provider when the first is rate limited, and cools it down", async () => {
+    const { AIError } = await import("@/server/ai/types");
+    class Limited extends FakeProvider {
+      id = "limited";
+      hits = 0;
+      async generate(): Promise<never> {
+        this.hits++;
+        throw new AIError("rate_limit", "429", this.id);
+      }
+    }
+    const limited = new Limited();
+    const backup = new FakeProvider();
+    backup.leader.push(leaderJson({ reply: "עדיין כאן." }), leaderJson({ reply: "שוב כאן." }));
+    setProviderOverride([limited, backup]);
+    expect((await turn("שלום")).reply).toBe("עדיין כאן.");
+    expect((await turn("שוב שלום")).reply).toBe("שוב כאן.");
+    expect(limited.hits).toBe(1); // cooling down → skipped the second time
+  });
+});
+
 describe("memory and history", () => {
   it("de-duplicates memories", async () => {
     const ctx = await ctxAt();

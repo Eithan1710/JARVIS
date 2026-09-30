@@ -1,12 +1,13 @@
 # Backup scheduler. The primary scheduler is Supabase Cron (every minute, see
-# scripts/supabase-cron.sql). This hourly run only catches anything missed if that is down.
+# scripts/supabase-cron.sql). This runs every 5 minutes (GitHub may delay scheduled runs),
+# so reminders still arrive if Supabase Cron isn't set up yet. Free for public repositories.
 # Setup (repo → Settings → Secrets and variables → Actions):
-#   secret  JARVIS_URL    e.g. https://jarvis-yourname.vercel.app
+#   secret  JARVIS_URL    e.g. https://jarvis-yourname.vercel.app  (NOVA_URL is accepted too)
 #   secret  CRON_SECRET   same value as the app's CRON_SECRET
 name: scheduler-backup
 on:
   schedule:
-    - cron: "17 * * * *"
+    - cron: "*/5 * * * *"
   workflow_dispatch: {}
 jobs:
   tick:
@@ -15,7 +16,7 @@ jobs:
     steps:
       - name: Run due jobs
         env:
-          JARVIS_URL: ${{ secrets.JARVIS_URL }}
+          JARVIS_URL: ${{ secrets.JARVIS_URL || secrets.NOVA_URL }}
           CRON_SECRET: ${{ secrets.CRON_SECRET }}
         run: |
           if [ -z "$JARVIS_URL" ] || [ -z "$CRON_SECRET" ]; then echo "JARVIS_URL / CRON_SECRET not configured — skipping"; exit 0; fi

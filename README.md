@@ -27,7 +27,7 @@ A personal AI assistant with a single Hebrew chat interface. One Leader model un
    - Web push keys — `npm run vapid`
 2. **Database** — Supabase → project → *Connect* → **Transaction pooler** URI (port 6543). Tables are created automatically in the `jarvis` schema on first start (existing schemas, e.g. `nova`, are untouched).
 3. **Vercel** — import this repo → add the variables from `.env.example` (`DATABASE_URL`, `APP_PASSCODE`, `SESSION_SECRET`, `ENCRYPTION_KEY`, `CRON_SECRET`, `GEMINI_API_KEY`, `GROQ_API_KEY`, `MISTRAL_API_KEY`, `VAPID_*`) → deploy. `vercel.json` pins functions to Seoul, next to the Supabase database.
-4. **Scheduler** — Supabase → SQL editor → run `scripts/supabase-cron.sql` with your app URL and `CRON_SECRET` (every-minute ticks → on-time reminders). Optional hourly backup: GitHub secrets `JARVIS_URL` + `CRON_SECRET`.
+4. **Scheduler** — Supabase → SQL editor → run `scripts/supabase-cron.sql` with your app URL and `CRON_SECRET` (every-minute ticks → on-time reminders). Backup: the `scheduler-backup` GitHub workflow ticks every ~5 minutes once the repo secrets `JARVIS_URL` (or the existing `NOVA_URL`) and `CRON_SECRET` are set.
 5. **iPhone** — open the URL in Safari → Share → *Add to Home Screen* → open JARVIS from the home screen → menu → enable notifications.
 
 ## Local development

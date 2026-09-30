@@ -44,6 +44,7 @@ jobs:
       - name: Publish
         run: |
           cd shots
+          echo '{"git":{"deploymentEnabled":false}}' > vercel.json
           git init -q -b ci-screenshots
           git config user.email "ci@users.noreply.github.com"
           git config user.name "ci"

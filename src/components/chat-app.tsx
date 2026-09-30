@@ -202,6 +202,7 @@ export function ChatApp({ lockable }: { lockable: boolean }) {
             ]);
             setFreshId(e.messageId);
             setLive(null);
+            setBusy(false);
             if (inputMode === "voice") speak(e.text);
             break;
           case "title":
