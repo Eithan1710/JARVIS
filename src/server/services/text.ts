@@ -1,7 +1,7 @@
 import "server-only";
 
 const STOP = new Set(
-  "של את על מה זה זו אני לי אתה את עם גם כל יש אם כי לא הוא היא הם או רק אבל אז איך למה מתי איפה מי שלי שלך אותי אותך היה היתה יהיה תגיד תזכיר תזכור ספר לי בבקשה עכשיו פעם דבר משהו the a an and or of to in on for is are was what when how why who me my you your i it this that".split(
+  "של את על מה זה זו אני לי לך לו לה לנו לכם להם אתה את עם גם כל יש אם כי לא הוא היא הם או רק אבל אז איך למה מתי איפה מי שלי שלך אותי אותך היה היתה יהיה תגיד תזכיר תזכור ספר לי בבקשה עכשיו פעם דבר משהו the a an and or of to in on for is are was what when how why who me my you your i it this that".split(
     " ",
   ),
 );

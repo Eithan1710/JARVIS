@@ -261,6 +261,12 @@ button {
   margin: 0 0 0.85em;
   padding-inline-start: 1.3em;
 }
+.jarvis-text ul {
+  list-style: disc;
+}
+.jarvis-text ol {
+  list-style: decimal;
+}
 .jarvis-text li {
   margin: 0.2em 0;
 }
@@ -409,9 +415,8 @@ button {
 }
 
 .drawer-panel {
-  background: color-mix(in oklab, var(--abyss-2) 94%, transparent);
-  backdrop-filter: blur(22px);
-  -webkit-backdrop-filter: blur(22px);
+  background: var(--abyss-2);
+  box-shadow: 0 0 60px -10px rgb(0 0 0 / 0.5);
 }
 
 @media (prefers-reduced-motion: reduce) {

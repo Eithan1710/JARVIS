@@ -374,7 +374,7 @@ export function ChatApp({ lockable }: { lockable: boolean }) {
             <Core size={148} state={coreState} level={recorder.level} className="mb-10" />
             <h1 className="font-serif text-[2.1rem] leading-tight text-pearl sm:text-[2.6rem]">{greeting(name)}</h1>
             <p className="mt-3 text-[1.05rem] text-mist">על מה נעבוד?</p>
-            <div className="mt-9 flex w-full max-w-sm flex-col items-stretch gap-1">
+            <div className="mt-9 flex w-full max-w-sm flex-col items-center gap-2.5">
               {SUGGESTIONS.map((s) => (
                 <button
                   key={s}
@@ -383,7 +383,7 @@ export function ChatApp({ lockable }: { lockable: boolean }) {
                     setText(s);
                     window.dispatchEvent(new Event("jarvis:focus-composer"));
                   }}
-                  className="rounded-xl px-3 py-2 text-[0.95rem] text-pearl-2 transition-colors hover:bg-veil hover:text-pearl"
+                  className="rounded-full border border-line px-4 py-2 text-[0.93rem] text-pearl-2 transition-colors hover:border-[var(--line-strong)] hover:bg-veil hover:text-pearl"
                 >
                   {s}
                 </button>
