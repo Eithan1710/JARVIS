@@ -44,4 +44,4 @@ npm run typecheck && npm run build
 - **Connection**: add a definition in `src/server/connections/registry.ts` (+ OAuth callback and tools).
 
 ## History
-This repository previously held **NOVA** (a personal-data dashboard). Its final state is tagged `nova-final`; its `nova` database schema is left as-is.
+This repository previously held **NOVA** (a personal-data dashboard). Its final state is commit `27e12d6`; its `nova` database schema is left as-is.
