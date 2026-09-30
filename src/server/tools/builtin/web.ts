@@ -115,7 +115,7 @@ export const fetchUrlTool = defineTool({
     for (let hop = 0; hop < 4 && target; hop++) {
       res = await fetch(target, { headers: { "user-agent": UA, accept: "text/html,text/plain;q=0.9,*/*;q=0.5" }, redirect: "manual", signal: AbortSignal.timeout(15_000) });
       if (res.status < 300 || res.status >= 400) break;
-      const loc = res.headers.get("location");
+      const loc: string | null = res.headers.get("location");
       target = loc ? isFetchableUrl(new URL(loc, target).toString()) : null;
       if (!target) return { ok: false, error: "redirect to a disallowed address" };
     }
