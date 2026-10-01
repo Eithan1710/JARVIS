@@ -169,7 +169,7 @@ button {
 }
 
 .glass-strong {
-  background: rgb(10 12 28 / 0.94);
+  background: #0a0c1c;
   border: 1px solid var(--line);
   backdrop-filter: blur(28px) saturate(1.5);
   -webkit-backdrop-filter: blur(28px) saturate(1.5);
@@ -606,7 +606,7 @@ button {
 .voice-overlay {
   background:
     radial-gradient(80% 55% at 50% 45%, rgb(60 40 160 / 0.5), transparent 70%),
-    rgb(4 5 13 / 0.97);
+    var(--void);
   backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);
   animation: fade-in 0.35s ease both;

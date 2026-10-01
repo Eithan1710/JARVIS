@@ -390,11 +390,11 @@ export function ChatApp({ lockable }: { lockable: boolean }) {
         {empty ? (
           <div className="mx-auto flex min-h-full w-full max-w-[var(--column)] flex-col items-center justify-center pb-6 text-center">
             <div className="relative -mb-6 sm:-mb-4">
-              <Orb size={wide ? 340 : 290} state={working ? "thinking" : "idle"} />
+              <Orb size={wide ? 300 : 250} state={working ? "thinking" : "idle"} />
             </div>
-            <h1 className="display gradient-text px-6 text-[4.6rem] sm:text-[6rem]">{hello || "\u00a0"}</h1>
+            <h1 className="display gradient-text px-6 text-[4.2rem] sm:text-[5.6rem]">{hello || "\u00a0"}</h1>
             <p className="mt-3 px-6 text-[1.1rem] text-ink-2">אני כאן. פשוט תגיד מה צריך.</p>
-            <div className="no-scrollbar mt-10 flex w-full snap-x gap-3 overflow-x-auto px-5 pb-3 sm:grid sm:max-w-2xl sm:grid-cols-3 sm:overflow-visible">
+            <div className="no-scrollbar mt-8 flex w-full snap-x gap-2.5 overflow-x-auto px-5 pb-2 sm:grid sm:max-w-2xl sm:grid-cols-3 sm:overflow-visible">
               {IDEAS.map((idea, i) => (
                 <button
                   key={idea.title}
@@ -403,18 +403,18 @@ export function ChatApp({ lockable }: { lockable: boolean }) {
                     setText(idea.text);
                     window.dispatchEvent(new Event("jarvis:focus-composer"));
                   }}
-                  className="idea rise flex w-[9.5rem] shrink-0 snap-start flex-col items-start gap-3 rounded-[22px] p-4 text-start sm:w-auto"
+                  className="idea rise flex shrink-0 snap-start items-center gap-3 rounded-[20px] py-2.5 ps-2.5 pe-4 text-start sm:w-auto"
                   style={{ animationDelay: `${150 + i * 70}ms` }}
                 >
                   <span
-                    className="tile grid size-10 place-items-center rounded-[13px]"
+                    className="tile grid size-10 shrink-0 place-items-center rounded-[13px]"
                     style={{ background: `linear-gradient(135deg, color-mix(in oklab, ${idea.color} 85%, white), color-mix(in oklab, ${idea.color} 70%, black))`, color: "#060716", "--tile-glow": `color-mix(in oklab, ${idea.color} 60%, transparent)` } as React.CSSProperties}
                   >
                     <Icon name={idea.icon} size={20} strokeWidth={2} />
                   </span>
                   <span>
-                    <span className="block text-[1rem] font-medium text-ink">{idea.title}</span>
-                    <span className="mt-0.5 block text-[0.8rem] text-ink-3">{idea.hint}</span>
+                    <span className="block whitespace-nowrap text-[0.98rem] font-medium leading-tight text-ink">{idea.title}</span>
+                    <span className="mt-0.5 block whitespace-nowrap text-[0.78rem] leading-tight text-ink-3">{idea.hint}</span>
                   </span>
                 </button>
               ))}
