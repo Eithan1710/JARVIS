@@ -6,23 +6,33 @@ import { registerServiceWorker, usePush } from "@/client/push";
 import { speak, stopSpeaking } from "@/client/speech";
 import { streamChat } from "@/client/stream";
 import { useRecorder } from "@/client/voice";
+import type { IconName } from "@/lib/protocol";
 import { Composer } from "./composer";
 import { Core } from "./core";
 import { Drawer } from "./drawer";
 import { Icon } from "./icons";
-import { ActionButtons, Chips, DaySeparator, JarvisMessage, UserMessage } from "./message-view";
+import { ActionCards, Chips, DaySeparator, JarvisMessage, StepList, UserMessage } from "./message-view";
+import { Orb } from "./orb";
+import { VoiceOverlay } from "./voice-overlay";
 
 const LAST_KEY = "jarvis.conversation";
 /** After this long without activity, JARVIS opens on a fresh screen (the old thread stays in history). */
 const FRESH_AFTER_MS = 6 * 60 * 60 * 1000;
 
-function greeting(name: string) {
+function greeting() {
   const h = new Date().getHours();
-  const part = h >= 5 && h < 12 ? "בוקר טוב" : h >= 12 && h < 17 ? "צהריים טובים" : h >= 17 && h < 22 ? "ערב טוב" : "לילה טוב";
-  return name ? `${part}, ${name}.` : `${part}.`;
+  return h >= 5 && h < 12 ? "בוקר טוב" : h >= 12 && h < 17 ? "צהריים טובים" : h >= 17 && h < 22 ? "ערב טוב" : "לילה טוב";
 }
 
-const SUGGESTIONS = ["תזכיר לי היום ב־20:00 להתקשר לאמא", "אני רוצה לבנות הרגל של קריאה כל ערב", "תפתח לי ניווט הביתה"];
+/** Starting points — tapping one drops a ready-to-edit sentence into the composer. */
+const IDEAS: { icon: IconName; title: string; text: string; color: string }[] = [
+  { icon: "bell", title: "תזכורת", text: "תזכיר לי היום ב־20:00 ", color: "#ffad5c" },
+  { icon: "repeat", title: "הרגל חדש", text: "אני רוצה לבנות הרגל של ", color: "#5ef0b4" },
+  { icon: "target", title: "יעד", text: "היעד שלי: ", color: "#8b6cff" },
+  { icon: "map", title: "ניווט", text: "תפתח לי ניווט ל", color: "#3fd8ff" },
+  { icon: "music", title: "מוזיקה", text: "תפתח לי ב־Spotify ", color: "#3be37f" },
+  { icon: "globe", title: "מחקר", text: "תבדוק לי ", color: "#ff7fd6" },
+];
 
 interface Live {
   steps: Step[];
@@ -42,7 +52,8 @@ export function ChatApp({ lockable }: { lockable: boolean }) {
   const [transcribing, setTranscribing] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [conversations, setConversations] = useState<ConversationSummary[] | null>(null);
-  const [name, setName] = useState("");
+  const [atBottom, setAtBottom] = useState(true);
+  const [hello, setHello] = useState("");
   const [showPushHint, setShowPushHint] = useState(false);
 
   const recorder = useRecorder();
@@ -71,9 +82,7 @@ export function ChatApp({ lockable }: { lockable: boolean }) {
 
   useEffect(() => {
     registerServiceWorker();
-    void apiGet<{ name: string }>("/api/system")
-      .then((s) => setName(s.name ?? ""))
-      .catch(() => {});
+    setHello(greeting());
     const params = new URLSearchParams(location.search);
     const fromUrl = params.get("c");
     const stored = localStorage.getItem(LAST_KEY);
@@ -137,6 +146,7 @@ export function ChatApp({ lockable }: { lockable: boolean }) {
     if (!el) return;
     const onScroll = () => {
       nearBottom.current = el.scrollHeight - el.scrollTop - el.clientHeight < 160;
+      setAtBottom(nearBottom.current);
     };
     el.addEventListener("scroll", onScroll, { passive: true });
     return () => el.removeEventListener("scroll", onScroll);
@@ -318,9 +328,10 @@ export function ChatApp({ lockable }: { lockable: boolean }) {
 
   /* ─────────────── render ─────────────── */
 
-  const coreState = recorder.state === "recording" ? "listening" : busy || transcribing ? "thinking" : "idle";
+  const listening = recorder.state === "recording";
+  const working = busy || transcribing;
   const empty = loaded && messages.length === 0 && !busy;
-  const runningStep = live?.steps.filter((s) => s.state === "running").at(-1);
+  const runningStep = live?.steps.filter((st) => st.state === "running").at(-1);
   const statusText = runningStep?.label ?? (live?.steps.length ? "מסכם…" : "חושב…");
 
   const withSeparators = useMemo(() => {
@@ -343,72 +354,83 @@ export function ChatApp({ lockable }: { lockable: boolean }) {
           if (msg) setNotice(msg);
           setShowPushHint(false);
         }}
-        className="mt-3 inline-flex items-center gap-2 rounded-full border border-line px-4 py-2 text-[0.9rem] text-pearl-2 hover:bg-veil"
+        className="glass rise inline-flex items-center gap-2.5 rounded-full py-2 ps-2 pe-4 text-[0.9rem] text-ink-2 hover:bg-glass-2"
       >
-        <Icon name="bell" size={16} className="text-ember" />
-        כדי שהתזכורות יגיעו גם כשהאפליקציה סגורה — הפעל התראות
+        <span className="grid size-7 place-items-center rounded-full bg-solar/20 text-solar">
+          <Icon name="bell" size={15} />
+        </span>
+        הפעל התראות כדי שהתזכורות יגיעו גם כשהאפליקציה סגורה
       </button>
     ) : showPushHint && push.state === "ios-needs-install" ? (
-      <p className="mt-3 text-[0.88rem] text-mist">כדי לקבל תזכורות באייפון: שתף ← ״הוסף למסך הבית״, ואז פתח את JARVIS משם.</p>
+      <p className="glass rise rounded-2xl px-4 py-3 text-[0.88rem] text-ink-2">כדי לקבל תזכורות באייפון: שתף ← ״הוסף למסך הבית״, ואז פתח את JARVIS משם.</p>
     ) : null;
 
   return (
     <div className="relative z-10 flex h-[100dvh] flex-col">
+      <div className="edge-glow" data-on={listening || working ? "true" : "false"} data-mode={listening ? "listening" : "working"} aria-hidden />
+
       <header className="relative z-20 shrink-0" style={{ paddingTop: "var(--safe-top)" }}>
-        <div className="mx-auto flex h-14 w-full max-w-[var(--column)] items-center justify-between px-2 sm:px-3">
-          <button type="button" onClick={openDrawer} className="grid size-11 place-items-center rounded-full text-pearl-2 transition-colors hover:bg-veil hover:text-pearl" aria-label="שיחות">
-            <Icon name="menu" size={22} />
+        <div className="mx-auto flex h-16 w-full max-w-[var(--column)] items-center justify-between px-2.5 sm:px-3">
+          <button type="button" onClick={openDrawer} className="glass grid size-11 place-items-center rounded-full text-ink-2 transition-colors hover:text-ink" aria-label="שיחות">
+            <Icon name="menu" size={21} />
           </button>
-          <div className={`flex items-center gap-2.5 transition-opacity duration-500 ${empty ? "opacity-0" : "opacity-100"}`} dir="ltr">
-            <Core size={22} state={coreState} level={recorder.level} />
-            <span className="font-[family-name:var(--font-mark)] text-[0.82rem] tracking-[0.34em] text-pearl-2">JARVIS</span>
+          <div className={`flex items-center gap-2.5 transition-all duration-500 ${empty ? "translate-y-1 opacity-0" : "opacity-100"}`} dir="ltr">
+            <Core size={20} state={working ? "thinking" : "idle"} />
+            <span className="wordmark text-[0.8rem] text-ink">JARVIS</span>
           </div>
-          <button type="button" onClick={newConversation} className="grid size-11 place-items-center rounded-full text-pearl-2 transition-colors hover:bg-veil hover:text-pearl" aria-label="שיחה חדשה">
-            <Icon name="plus" size={22} />
+          <button type="button" onClick={newConversation} className="glass grid size-11 place-items-center rounded-full text-ink-2 transition-colors hover:text-ink" aria-label="שיחה חדשה">
+            <Icon name="compose" size={20} />
           </button>
         </div>
       </header>
 
-      <main ref={scroller} className="scroll relative flex-1 overflow-y-auto overscroll-contain">
+      <main ref={scroller} className={`scroll relative flex-1 overflow-y-auto overscroll-contain ${empty ? "" : "fade-edges"}`}>
         {empty ? (
-          <div className="mx-auto flex min-h-full w-full max-w-[var(--column)] flex-col items-center justify-center px-6 pb-10 text-center">
-            <Core size={148} state={coreState} level={recorder.level} className="mb-10" />
-            <h1 className="font-serif text-[2.1rem] leading-tight text-pearl sm:text-[2.6rem]">{greeting(name)}</h1>
-            <p className="mt-3 text-[1.05rem] text-mist">על מה נעבוד?</p>
-            <div className="mt-9 flex w-full max-w-sm flex-col items-center gap-2.5">
-              {SUGGESTIONS.map((s) => (
+          <div className="mx-auto flex min-h-full w-full max-w-[var(--column)] flex-col items-center justify-center pb-6 text-center">
+            <div className="relative -mb-6 sm:-mb-4">
+              <Orb size={280} state={working ? "thinking" : "idle"} />
+            </div>
+            <h1 className="display gradient-text px-6 text-[4.6rem] sm:text-[6rem]">{hello || "\u00a0"}</h1>
+            <p className="mt-3 px-6 text-[1.1rem] text-ink-2">אני כאן. פשוט תגיד מה צריך.</p>
+            <div className="no-scrollbar mt-9 flex w-full snap-x gap-2.5 overflow-x-auto px-5 pb-2 sm:flex-wrap sm:justify-center sm:overflow-visible">
+              {IDEAS.map((idea, i) => (
                 <button
-                  key={s}
+                  key={idea.title}
                   type="button"
                   onClick={() => {
-                    setText(s);
+                    setText(idea.text);
                     window.dispatchEvent(new Event("jarvis:focus-composer"));
                   }}
-                  className="rounded-full border border-line px-4 py-2 text-[0.93rem] text-pearl-2 transition-colors hover:border-[var(--line-strong)] hover:bg-veil hover:text-pearl"
+                  className="idea rise flex shrink-0 snap-start items-center gap-2.5 rounded-full py-2 ps-2 pe-4 text-[0.95rem] text-ink"
+                  style={{ animationDelay: `${120 + i * 60}ms` }}
                 >
-                  {s}
+                  <span className="grid size-8 place-items-center rounded-full" style={{ background: `color-mix(in oklab, ${idea.color} 22%, transparent)`, color: idea.color }}>
+                    <Icon name={idea.icon} size={17} strokeWidth={1.9} />
+                  </span>
+                  {idea.title}
                 </button>
               ))}
             </div>
           </div>
         ) : (
-          <div className="mx-auto flex w-full max-w-[var(--column)] flex-col gap-7 px-5 pb-8 pt-4 sm:px-6">
+          <div className="mx-auto flex w-full max-w-[var(--column)] flex-col gap-8 px-4 pb-10 pt-6 sm:px-6">
             {withSeparators.map(({ m, sep }) => (
-              <div key={m.id}>
+              <div key={m.id} className="flex flex-col gap-8">
                 {sep && <DaySeparator iso={m.createdAt} />}
                 {m.role === "user" ? <UserMessage m={m} /> : <JarvisMessage m={m} fresh={m.id === freshId} />}
               </div>
             ))}
             {live && (
-              <div className="flex flex-col" aria-live="polite">
-                <div className="flex items-center gap-3">
-                  <Core size={26} state="thinking" />
-                  <span key={statusText} className="status-line shimmer text-[0.98rem]">
+              <div className="flex gap-3" aria-live="polite">
+                <Core size={22} state="thinking" className="mt-1" />
+                <div className="min-w-0 flex-1">
+                  <span key={statusText} className="rise shimmer block text-[1.0625rem]">
                     {statusText}
                   </span>
+                  {live.steps.length > 1 && <StepList steps={live.steps} live />}
+                  <ActionCards actions={live.actions} />
+                  <Chips chips={live.chips} />
                 </div>
-                <ActionButtons actions={live.actions} />
-                <Chips chips={live.chips} />
               </div>
             )}
             {pushHint && <div>{pushHint}</div>}
@@ -416,22 +438,32 @@ export function ChatApp({ lockable }: { lockable: boolean }) {
         )}
       </main>
 
-      <footer className="relative z-20 shrink-0 pt-2" style={{ paddingBottom: "max(var(--safe-bottom), 12px)" }}>
+      {!empty && !atBottom && (
+        <button
+          type="button"
+          onClick={() => scroller.current?.scrollTo({ top: scroller.current.scrollHeight, behavior: "smooth" })}
+          className="glass-strong rise absolute bottom-28 left-1/2 z-20 grid size-10 -translate-x-1/2 place-items-center rounded-full text-ink-2"
+          style={{ marginBottom: "var(--safe-bottom)" }}
+          aria-label="לסוף השיחה"
+        >
+          <Icon name="down" size={18} />
+        </button>
+      )}
+
+      <footer className="relative z-20 shrink-0 pt-1" style={{ paddingBottom: "max(var(--safe-bottom), 14px)" }}>
         <Composer
           value={text}
           onChange={setText}
           onSend={() => void send(text)}
           busy={busy}
-          recording={recorder.state === "recording"}
           transcribing={transcribing}
-          level={recorder.level}
-          elapsed={recorder.elapsed}
           onMic={() => void onMic()}
-          onStopRecording={(s) => void onStopRecording(s)}
           onCancelWork={cancelWork}
           notice={notice}
         />
       </footer>
+
+      {listening && <VoiceOverlay level={recorder.level} elapsed={recorder.elapsed} onCancel={() => void onStopRecording(false)} onSend={() => void onStopRecording(true)} />}
 
       <Drawer
         open={drawerOpen}

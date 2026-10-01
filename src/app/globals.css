@@ -1,84 +1,66 @@
 @import "tailwindcss";
 
 /* ─────────────────────────────────────────────────────────────────────────
-   JARVIS — "night instrument"
-   A deep ink-blue night, pearl text, and one luminous core that carries all
-   the colour (ion blue → ember gold). JARVIS speaks in a Hebrew serif; you
-   speak in a precise sans. Everything else stays quiet.
+   JARVIS — "living light"
+   Near-black space, glass surfaces, and one luminous plasma presence that
+   carries all the colour: arc cyan, ultraviolet, a warm solar flare.
    ───────────────────────────────────────────────────────────────────────── */
 
+@property --edge-angle {
+  syntax: "<angle>";
+  inherits: false;
+  initial-value: 0deg;
+}
+
 :root {
-  --abyss: #0a0f1f;
-  --abyss-2: #0d1328;
-  --veil: #151c33;
-  --veil-2: #1b2340;
-  --line: rgb(152 170 220 / 0.13);
-  --line-strong: rgb(152 170 220 / 0.24);
-  --pearl: #e8ecf5;
-  --pearl-2: #c5cbdb;
-  --mist: #8a93ad;
-  --faint: #5d6684;
+  --void: #04050d;
+  --night: #090b1a;
+  --deep: #0e1126;
+  --glass: rgb(255 255 255 / 0.055);
+  --glass-2: rgb(255 255 255 / 0.085);
+  --glass-3: rgb(255 255 255 / 0.12);
+  --line: rgb(255 255 255 / 0.08);
+  --line-2: rgb(255 255 255 / 0.15);
 
-  --ion: #7fd4ff;
-  --ember: #ffc98b;
-  --ion-soft: rgb(127 212 255 / 0.12);
-  --ember-soft: rgb(255 201 139 / 0.12);
-  --danger: #ff8f84;
+  --ink: #f3f5ff;
+  --ink-2: #b8bedb;
+  --ink-3: #737a9e;
 
-  --glow-1: rgb(64 124 255 / 0.22);
-  --glow-2: rgb(255 170 90 / 0.1);
+  --arc: #3fd8ff;
+  --plasma: #8b6cff;
+  --solar: #ffad5c;
+  --mint: #5ef0b4;
+  --danger: #ff6b81;
 
-  --font-body: var(--font-plex), system-ui, sans-serif;
-  --font-display: var(--font-frank), "Times New Roman", serif;
-  --font-mark: var(--font-unbounded), var(--font-plex), sans-serif;
+  --font-body: var(--font-rubik), system-ui, sans-serif;
+  --font-display: var(--font-karantina), var(--font-rubik), sans-serif;
+  --font-mark: var(--font-unbounded), sans-serif;
 
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
-  --safe-left: env(safe-area-inset-left, 0px);
-  --safe-right: env(safe-area-inset-right, 0px);
-
-  --column: 44rem;
+  --column: 46rem;
   color-scheme: dark;
 }
 
-/* Day variant: frosted paper, deep ink, the same core. */
-@media (prefers-color-scheme: light) {
-  :root:not([data-theme="night"]) {
-    --abyss: #eef1f7;
-    --abyss-2: #e6eaf3;
-    --veil: #ffffff;
-    --veil-2: #f5f7fb;
-    --line: rgb(40 52 92 / 0.1);
-    --line-strong: rgb(40 52 92 / 0.2);
-    --pearl: #121831;
-    --pearl-2: #2e3654;
-    --mist: #5b6480;
-    --faint: #8d95ad;
-    --ion: #1678b3;
-    --ember: #b8741f;
-    --ion-soft: rgb(22 120 179 / 0.09);
-    --ember-soft: rgb(184 116 31 / 0.1);
-    --danger: #c2412f;
-    --glow-1: rgb(80 140 255 / 0.16);
-    --glow-2: rgb(255 170 90 / 0.14);
-    color-scheme: light;
-  }
-}
-
 @theme inline {
-  --color-abyss: var(--abyss);
-  --color-veil: var(--veil);
-  --color-veil-2: var(--veil-2);
+  --color-void: var(--void);
+  --color-night: var(--night);
+  --color-deep: var(--deep);
+  --color-glass: var(--glass);
+  --color-glass-2: var(--glass-2);
+  --color-glass-3: var(--glass-3);
   --color-line: var(--line);
-  --color-pearl: var(--pearl);
-  --color-pearl-2: var(--pearl-2);
-  --color-mist: var(--mist);
-  --color-faint: var(--faint);
-  --color-ion: var(--ion);
-  --color-ember: var(--ember);
+  --color-line-2: var(--line-2);
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-ink-3: var(--ink-3);
+  --color-arc: var(--arc);
+  --color-plasma: var(--plasma);
+  --color-solar: var(--solar);
+  --color-mint: var(--mint);
   --color-danger: var(--danger);
   --font-sans: var(--font-body);
-  --font-serif: var(--font-display);
+  --font-display: var(--font-display);
 }
 
 * {
@@ -92,8 +74,8 @@ body {
 
 body {
   margin: 0;
-  background: var(--abyss);
-  color: var(--pearl);
+  background: var(--void);
+  color: var(--ink);
   font-family: var(--font-body);
   font-size: 16px;
   line-height: 1.6;
@@ -102,205 +84,281 @@ body {
   overscroll-behavior: none;
 }
 
-/* The atmosphere: a faint aurora above the conversation, fixed so it never scrolls. */
-.atmosphere {
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
-  z-index: 0;
-  background:
-    radial-gradient(60rem 32rem at 50% -12rem, var(--glow-1), transparent 70%),
-    radial-gradient(40rem 22rem at 85% 10%, var(--glow-2), transparent 70%),
-    linear-gradient(180deg, var(--abyss-2), var(--abyss) 40%);
-}
-
-::selection {
-  background: var(--ion-soft);
-  color: var(--pearl);
-}
-
-:focus-visible {
-  outline: 2px solid var(--ion);
-  outline-offset: 2px;
-  border-radius: 10px;
-}
-
 button {
   font: inherit;
   color: inherit;
   cursor: pointer;
 }
 
-/* ───────────────────────────── the core ───────────────────────────── */
-
-.core {
-  --size: 132px;
-  --level: 0;
-  position: relative;
-  width: var(--size);
-  height: var(--size);
-  flex: none;
-  border-radius: 50%;
-  isolation: isolate;
+::selection {
+  background: rgb(63 216 255 / 0.28);
 }
-.core::before,
-.core::after,
-.core .core-ring,
-.core .core-heart {
+
+:focus-visible {
+  outline: 2px solid var(--arc);
+  outline-offset: 2px;
+  border-radius: 12px;
+}
+
+/* ───────────────────────────── atmosphere ───────────────────────────── */
+
+.atmosphere {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  overflow: hidden;
+  background:
+    radial-gradient(70rem 40rem at 50% -18rem, rgb(80 70 220 / 0.32), transparent 65%),
+    radial-gradient(40rem 30rem at 100% 0%, rgb(63 216 255 / 0.12), transparent 70%),
+    radial-gradient(50rem 30rem at 0% 100%, rgb(255 140 80 / 0.07), transparent 70%),
+    var(--void);
+}
+/* Two slow drifting light pools */
+.atmosphere::before,
+.atmosphere::after {
   content: "";
   position: absolute;
+  width: 60vmax;
+  height: 60vmax;
   border-radius: 50%;
+  filter: blur(80px);
+  opacity: 0.35;
 }
-/* Halo */
-.core::before {
-  inset: -38%;
-  background: radial-gradient(closest-side, var(--glow-1), transparent 72%);
-  filter: blur(6px);
-  opacity: 0.9;
-  transform: scale(calc(1 + var(--level) * 0.35));
-  transition: transform 90ms linear;
+.atmosphere::before {
+  top: -20vmax;
+  inset-inline-start: -15vmax;
+  background: radial-gradient(closest-side, rgb(139 108 255 / 0.55), transparent);
+  animation: drift-a 26s ease-in-out infinite alternate;
 }
-/* The ring: a rotating conic gradient, masked to an annulus. */
-.core .core-ring {
-  inset: 0;
-  background: conic-gradient(from 0deg, var(--ion), transparent 22%, var(--ember) 48%, transparent 70%, var(--ion));
-  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 2.5px));
-  mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 2.5px));
-  animation: core-spin 9s linear infinite;
-  filter: drop-shadow(0 0 6px var(--ion-soft));
+.atmosphere::after {
+  bottom: -25vmax;
+  inset-inline-end: -20vmax;
+  background: radial-gradient(closest-side, rgb(63 216 255 / 0.35), transparent);
+  animation: drift-b 32s ease-in-out infinite alternate;
 }
-.core .core-ring.inner {
-  inset: 16%;
-  opacity: 0.55;
-  animation-duration: 14s;
-  animation-direction: reverse;
-  background: conic-gradient(from 90deg, transparent, var(--ion) 30%, transparent 55%, var(--ember) 80%, transparent);
+@keyframes drift-a {
+  to {
+    transform: translate(12vmax, 10vmax) scale(1.1);
+  }
 }
-/* Heart: the soft light at the centre that breathes. */
-.core .core-heart {
-  inset: 34%;
-  background: radial-gradient(circle at 45% 40%, #fff, var(--ion) 38%, transparent 72%);
-  opacity: 0.55;
-  filter: blur(3px);
-  animation: core-breathe 5.5s ease-in-out infinite;
-  transform: scale(calc(1 + var(--level) * 0.9));
-}
-.core[data-state="thinking"] .core-ring {
-  animation-duration: 1.6s;
-}
-.core[data-state="thinking"] .core-ring.inner {
-  animation-duration: 2.4s;
-}
-.core[data-state="thinking"] .core-heart {
-  animation: core-think 1.4s ease-in-out infinite;
-}
-.core[data-state="listening"] .core-ring {
-  animation-duration: 4s;
-  background: conic-gradient(from 0deg, var(--ember), transparent 30%, var(--ember) 50%, transparent 80%, var(--ember));
-}
-.core[data-state="listening"] .core-heart {
-  animation: none;
-  opacity: 0.8;
-  background: radial-gradient(circle at 45% 40%, #fff, var(--ember) 40%, transparent 72%);
+@keyframes drift-b {
+  to {
+    transform: translate(-10vmax, -8vmax) scale(1.15);
+  }
 }
 
-@keyframes core-spin {
-  to {
-    transform: rotate(360deg);
-  }
+/* Film grain for a tactile, premium surface. */
+.grain {
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  opacity: 0.07;
+  mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='3' stitchTiles='stitch'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
 }
-@keyframes core-breathe {
-  0%,
-  100% {
-    opacity: 0.4;
-    scale: 0.92;
-  }
-  50% {
-    opacity: 0.72;
-    scale: 1.06;
-  }
+
+/* ───────────────────────────── surfaces ───────────────────────────── */
+
+.glass {
+  background: var(--glass);
+  border: 1px solid var(--line);
+  backdrop-filter: blur(20px) saturate(1.4);
+  -webkit-backdrop-filter: blur(20px) saturate(1.4);
 }
-@keyframes core-think {
-  0%,
-  100% {
-    opacity: 0.45;
-    scale: 0.85;
-  }
-  50% {
-    opacity: 0.9;
-    scale: 1.15;
-  }
+
+.glass-strong {
+  background: rgb(14 17 38 / 0.72);
+  border: 1px solid var(--line);
+  backdrop-filter: blur(28px) saturate(1.5);
+  -webkit-backdrop-filter: blur(28px) saturate(1.5);
+}
+
+.wordmark {
+  font-family: var(--font-mark);
+  letter-spacing: 0.42em;
+  font-weight: 500;
+}
+
+.display {
+  font-family: var(--font-display);
+  font-weight: 700;
+  line-height: 0.92;
+  letter-spacing: -0.005em;
+}
+
+.gradient-text {
+  background: linear-gradient(100deg, #ffffff 10%, #c9d6ff 40%, var(--arc) 75%, var(--plasma) 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, var(--arc), var(--plasma));
+  color: #050616;
+  box-shadow:
+    0 8px 28px -6px rgb(99 140 255 / 0.65),
+    inset 0 1px 0 rgb(255 255 255 / 0.45);
+}
+
+/* ───────────────────────────── composer ───────────────────────────── */
+
+.composer-shell {
+  position: relative;
+  border-radius: 30px;
+  background: rgb(16 19 40 / 0.72);
+  border: 1px solid var(--line-2);
+  box-shadow:
+    0 24px 60px -20px rgb(0 0 0 / 0.8),
+    inset 0 1px 0 rgb(255 255 255 / 0.06);
+  backdrop-filter: blur(24px) saturate(1.5);
+  -webkit-backdrop-filter: blur(24px) saturate(1.5);
+  transition:
+    border-color 0.3s,
+    box-shadow 0.3s;
+}
+.composer-shell::before {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  padding: 1px;
+  background: conic-gradient(from var(--edge-angle), var(--arc), var(--plasma), var(--solar), var(--arc));
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  opacity: 0;
+  transition: opacity 0.4s;
+  animation: edge-spin 6s linear infinite;
+  pointer-events: none;
+}
+.composer-shell:focus-within::before {
+  opacity: 0.9;
+}
+.composer-shell:focus-within {
+  box-shadow:
+    0 24px 60px -20px rgb(0 0 0 / 0.8),
+    0 0 40px -10px rgb(99 140 255 / 0.45);
+}
+.composer-shell textarea {
+  resize: none;
+  background: transparent;
+  border: 0;
+  outline: none;
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: 1.0625rem; /* ≥16px so iOS doesn't zoom */
+  line-height: 1.5;
+}
+.composer-shell textarea::placeholder {
+  color: var(--ink-3);
+}
+
+.mic-btn {
+  background: radial-gradient(circle at 35% 30%, #fff 0%, #bfefff 18%, var(--arc) 45%, var(--plasma) 100%);
+  color: #050616;
+  box-shadow:
+    0 0 0 1px rgb(255 255 255 / 0.25) inset,
+    0 10px 30px -6px rgb(80 150 255 / 0.75);
+}
+.send-btn {
+  background: var(--ink);
+  color: var(--void);
+  box-shadow: 0 8px 24px -8px rgb(255 255 255 / 0.5);
 }
 
 /* ─────────────────────────── conversation ─────────────────────────── */
 
 .jarvis-text {
-  font-family: var(--font-display);
-  font-size: 1.125rem;
-  line-height: 1.8;
-  color: var(--pearl);
-  letter-spacing: 0.002em;
+  font-size: 1.0625rem;
+  line-height: 1.75;
+  color: var(--ink);
+  font-weight: 400;
 }
 .jarvis-text p {
-  margin: 0 0 0.85em;
+  margin: 0 0 0.8em;
 }
 .jarvis-text p:last-child {
   margin-bottom: 0;
 }
 .jarvis-text strong {
   font-weight: 600;
+  color: #fff;
+}
+.jarvis-text em {
+  color: var(--ink-2);
 }
 .jarvis-text a {
-  color: var(--ion);
+  color: var(--arc);
   text-decoration: underline;
   text-decoration-thickness: 1px;
   text-underline-offset: 3px;
 }
 .jarvis-text ul,
 .jarvis-text ol {
-  margin: 0 0 0.85em;
-  padding-inline-start: 1.3em;
+  margin: 0 0 0.8em;
+  padding-inline-start: 1.25em;
 }
 .jarvis-text ul {
-  list-style: disc;
+  list-style: none;
+  padding-inline-start: 0;
+}
+.jarvis-text ul > li {
+  position: relative;
+  padding-inline-start: 1.25em;
+}
+.jarvis-text ul > li::before {
+  content: "";
+  position: absolute;
+  inset-inline-start: 0.2em;
+  top: 0.72em;
+  width: 0.42em;
+  height: 0.42em;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--arc), var(--plasma));
+  box-shadow: 0 0 10px rgb(63 216 255 / 0.6);
 }
 .jarvis-text ol {
   list-style: decimal;
 }
-.jarvis-text li {
-  margin: 0.2em 0;
+.jarvis-text ol > li::marker {
+  color: var(--arc);
+  font-weight: 600;
 }
-.jarvis-text li::marker {
-  color: var(--mist);
+.jarvis-text li {
+  margin: 0.3em 0;
 }
 .jarvis-text h3,
 .jarvis-text h4 {
-  font-family: var(--font-body);
-  font-size: 1rem;
+  font-size: 1.05rem;
   font-weight: 600;
-  margin: 1.2em 0 0.4em;
-  color: var(--pearl);
+  margin: 1.1em 0 0.35em;
+  color: #fff;
 }
 .jarvis-text code {
   font-family: ui-monospace, "SF Mono", Menlo, monospace;
-  font-size: 0.86em;
-  background: var(--veil);
+  font-size: 0.85em;
+  background: var(--glass-2);
   border: 1px solid var(--line);
-  padding: 0.05em 0.35em;
-  border-radius: 6px;
+  padding: 0.08em 0.4em;
+  border-radius: 7px;
   direction: ltr;
   unicode-bidi: isolate;
 }
 .jarvis-text pre {
   direction: ltr;
   text-align: left;
-  background: var(--veil);
+  background: rgb(0 0 0 / 0.35);
   border: 1px solid var(--line);
-  border-radius: 14px;
+  border-radius: 16px;
   padding: 0.9rem 1rem;
   overflow-x: auto;
-  margin: 0 0 0.85em;
-  font-size: 0.86rem;
+  margin: 0 0 0.8em;
+  font-size: 0.85rem;
   line-height: 1.55;
 }
 .jarvis-text pre code {
@@ -309,33 +367,36 @@ button {
   padding: 0;
 }
 .jarvis-text blockquote {
-  margin: 0 0 0.85em;
-  padding-inline-start: 0.9em;
-  border-inline-start: 2px solid var(--line-strong);
-  color: var(--pearl-2);
+  margin: 0 0 0.8em;
+  padding: 0.2em 0.9em;
+  border-inline-start: 2px solid var(--plasma);
+  color: var(--ink-2);
 }
 .jarvis-text hr {
   border: 0;
-  border-top: 1px solid var(--line);
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--line-2), transparent);
   margin: 1.2em 0;
 }
 
-.user-text {
-  font-size: 1rem;
-  line-height: 1.6;
+.user-bubble {
+  background: linear-gradient(135deg, rgb(63 216 255 / 0.2), rgb(139 108 255 / 0.28));
+  border: 1px solid rgb(160 170 255 / 0.22);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.08),
+    0 10px 30px -14px rgb(110 90 255 / 0.6);
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
 
-/* Replies reveal line by line, like being written. */
 .reveal {
-  animation: reveal 520ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  animation: reveal 600ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
 }
 @keyframes reveal {
   from {
     opacity: 0;
-    transform: translateY(6px);
-    filter: blur(3px);
+    transform: translateY(8px);
+    filter: blur(6px);
   }
   to {
     opacity: 1;
@@ -344,13 +405,13 @@ button {
   }
 }
 
-.status-line {
-  animation: status-in 360ms ease both;
+.rise {
+  animation: rise 420ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
 }
-@keyframes status-in {
+@keyframes rise {
   from {
     opacity: 0;
-    transform: translateY(4px);
+    transform: translateY(10px) scale(0.98);
   }
   to {
     opacity: 1;
@@ -359,12 +420,12 @@ button {
 }
 
 .shimmer {
-  background: linear-gradient(90deg, var(--mist) 0%, var(--pearl) 45%, var(--mist) 90%);
+  background: linear-gradient(90deg, var(--ink-3) 0%, #fff 45%, var(--ink-3) 90%);
   background-size: 220% 100%;
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
-  animation: shimmer 2.2s linear infinite;
+  animation: shimmer 2s linear infinite;
 }
 @keyframes shimmer {
   from {
@@ -375,48 +436,188 @@ button {
   }
 }
 
-/* Scroll area */
+.action-card {
+  background: linear-gradient(180deg, rgb(255 255 255 / 0.07), rgb(255 255 255 / 0.03));
+  border: 1px solid var(--line-2);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.06);
+  transition:
+    transform 0.2s,
+    border-color 0.2s,
+    background 0.2s;
+}
+.action-card:hover {
+  border-color: rgb(255 255 255 / 0.26);
+  background: linear-gradient(180deg, rgb(255 255 255 / 0.1), rgb(255 255 255 / 0.04));
+}
+.action-card:active {
+  transform: scale(0.98);
+}
+.tile {
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.35),
+    0 6px 18px -6px var(--tile-glow, rgb(0 0 0 / 0.5));
+}
+
+.chip-done {
+  background: rgb(94 240 180 / 0.08);
+  border: 1px solid rgb(94 240 180 / 0.22);
+  color: #c9fbe6;
+}
+
+.idea {
+  background: var(--glass);
+  border: 1px solid var(--line);
+  transition:
+    background 0.2s,
+    border-color 0.2s,
+    transform 0.2s;
+}
+.idea:hover {
+  background: var(--glass-2);
+  border-color: var(--line-2);
+}
+.idea:active {
+  transform: scale(0.97);
+}
+
+.no-scrollbar {
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
 .scroll {
   scrollbar-width: thin;
-  scrollbar-color: var(--line-strong) transparent;
+  scrollbar-color: var(--line-2) transparent;
   -webkit-overflow-scrolling: touch;
 }
 
-/* Composer */
-.composer {
-  background: color-mix(in oklab, var(--veil) 86%, transparent);
-  border: 1px solid var(--line);
+/* Fade the conversation under the header and the composer. */
+.fade-edges {
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 28px, #000 calc(100% - 28px), transparent 100%);
+  mask-image: linear-gradient(to bottom, transparent 0, #000 28px, #000 calc(100% - 28px), transparent 100%);
+}
+
+/* ───────────────────────────── edge glow ───────────────────────────── */
+/* Siri-style living border while JARVIS listens or works. */
+
+.edge-glow {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.7s ease;
+}
+.edge-glow[data-on="true"] {
+  opacity: 1;
+}
+.edge-glow::before,
+.edge-glow::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: var(--edge-radius, 0px);
+  padding: 3px;
+  background: conic-gradient(from var(--edge-angle), var(--arc), var(--plasma), #ff5fc8, var(--solar), var(--arc));
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  animation: edge-spin 3.2s linear infinite;
+}
+.edge-glow::after {
+  padding: 14px;
+  filter: blur(18px);
+  opacity: 0.85;
+}
+.edge-glow[data-mode="listening"]::before,
+.edge-glow[data-mode="listening"]::after {
+  animation-duration: 1.8s;
+}
+@media (pointer: coarse) {
+  .edge-glow {
+    --edge-radius: 46px;
+  }
+}
+@keyframes edge-spin {
+  to {
+    --edge-angle: 360deg;
+  }
+}
+
+/* ───────────────────────────── CSS core ───────────────────────────── */
+/* The small orb (header, inline) — the big one is WebGL. */
+
+.core {
+  --size: 28px;
+  --level: 0;
+  position: relative;
+  width: var(--size);
+  height: var(--size);
+  flex: none;
+  border-radius: 50%;
+  isolation: isolate;
+  background:
+    radial-gradient(circle at 34% 30%, #fff 0%, rgb(190 240 255 / 0.9) 12%, transparent 34%),
+    radial-gradient(circle at 70% 75%, rgb(255 140 90 / 0.85), transparent 45%),
+    conic-gradient(from 0deg, var(--arc), var(--plasma), #ff5fc8, var(--arc));
   box-shadow:
-    0 18px 48px -18px rgb(0 0 0 / 0.55),
-    inset 0 1px 0 rgb(255 255 255 / 0.04);
-  backdrop-filter: blur(18px) saturate(1.2);
-  -webkit-backdrop-filter: blur(18px) saturate(1.2);
+    0 0 calc(var(--size) * 0.5) rgb(90 150 255 / 0.55),
+    inset 0 0 calc(var(--size) * 0.18) rgb(255 255 255 / 0.5);
+  animation: core-turn 8s linear infinite;
 }
-.composer:focus-within {
-  border-color: var(--line-strong);
+.core::after {
+  content: "";
+  position: absolute;
+  inset: -35%;
+  border-radius: 50%;
+  background: radial-gradient(closest-side, rgb(110 140 255 / 0.45), transparent);
+  z-index: -1;
+  animation: core-breathe 4s ease-in-out infinite;
 }
-.composer textarea {
-  resize: none;
-  background: transparent;
-  border: 0;
-  outline: none;
-  color: var(--pearl);
-  font-family: var(--font-body);
-  font-size: 1rem; /* ≥16px so iOS doesn't zoom */
-  line-height: 1.55;
+.core[data-state="thinking"] {
+  animation-duration: 1.4s;
 }
-.composer textarea::placeholder {
-  color: var(--faint);
+.core[data-state="thinking"]::after {
+  animation-duration: 1.2s;
+}
+@keyframes core-turn {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@keyframes core-breathe {
+  0%,
+  100% {
+    opacity: 0.5;
+    transform: scale(0.9);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.12);
+  }
+}
+
+/* ───────────────────────────── voice mode ───────────────────────────── */
+
+.voice-overlay {
+  background: radial-gradient(80% 60% at 50% 40%, rgb(40 30 110 / 0.55), rgb(4 5 13 / 0.94) 70%);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  animation: fade-in 0.35s ease both;
+}
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
 }
 
 .level-bar {
   transform-origin: center;
   transition: transform 80ms linear;
-}
-
-.drawer-panel {
-  background: var(--abyss-2);
-  box-shadow: 0 0 60px -10px rgb(0 0 0 / 0.5);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -426,8 +627,5 @@ button {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
-  }
-  .core .core-ring {
-    animation: none;
   }
 }

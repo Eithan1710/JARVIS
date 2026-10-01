@@ -1,6 +1,6 @@
 import type { IconName } from "@/lib/protocol";
 
-type Name = IconName | "mic" | "send" | "stop" | "menu" | "plus" | "close" | "external" | "chevron" | "lock" | "bellOn" | "trash" | "x";
+type Name = IconName | "mic" | "send" | "stop" | "menu" | "plus" | "close" | "external" | "chevron" | "lock" | "bellOn" | "trash" | "x" | "copy" | "down" | "arrow" | "compose";
 
 const PATHS: Record<Name, React.ReactNode> = {
   spark: <path d="M12 3v4M12 17v4M3 12h4M17 12h4M6 6l2.5 2.5M15.5 15.5 18 18M6 18l2.5-2.5M15.5 8.5 18 6" />,
@@ -122,6 +122,20 @@ const PATHS: Record<Name, React.ReactNode> = {
     </>
   ),
   trash: <path d="M5 7h14M10 7V5h4v2M7 7l1 13h8l1-13" />,
+  copy: (
+    <>
+      <rect x="8.5" y="8.5" width="11.5" height="11.5" rx="3" />
+      <path d="M15.5 8.5V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v7.5a2 2 0 0 0 2 2h2.5" />
+    </>
+  ),
+  down: <path d="M12 5v14M6 13l6 6 6-6" />,
+  arrow: <path d="M19 12H5M11 6l-6 6 6 6" />,
+  compose: (
+    <>
+      <path d="M12 4H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-6" />
+      <path d="M17.5 3.5a2.1 2.1 0 0 1 3 3L13 14l-4 1 1-4Z" />
+    </>
+  ),
 };
 
 export function Icon({ name, size = 20, className, strokeWidth = 1.6 }: { name: Name; size?: number; className?: string; strokeWidth?: number }) {

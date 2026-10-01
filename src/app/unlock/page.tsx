@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
-import { Core } from "@/components/core";
+import { Orb } from "@/components/orb";
 
 export default function Unlock() {
   const [code, setCode] = useState("");
@@ -36,8 +36,8 @@ export default function Unlock() {
 
   return (
     <main className="relative z-10 flex min-h-[100dvh] flex-col items-center justify-center px-6" style={{ paddingTop: "var(--safe-top)", paddingBottom: "var(--safe-bottom)" }}>
-      <Core size={140} state={busy ? "thinking" : "idle"} />
-      <p className="mt-8 mb-10 font-[family-name:var(--font-mark)] text-[0.95rem] tracking-[0.4em] text-pearl-2" dir="ltr">
+      <Orb size={220} state={busy ? "thinking" : "idle"} />
+      <p className="wordmark mb-10 mt-4 text-[0.95rem] text-ink" dir="ltr">
         JARVIS
       </p>
       <form onSubmit={submit} className="w-full max-w-xs">
@@ -49,10 +49,10 @@ export default function Unlock() {
           value={code}
           onChange={(e) => setCode(e.target.value)}
           placeholder="קוד גישה"
-          className="composer w-full rounded-full px-5 py-3.5 text-center text-[1.05rem] text-pearl outline-none placeholder:text-faint"
+          className="composer-shell w-full px-5 py-3.5 text-center text-[1.05rem] text-ink outline-none placeholder:text-ink-3"
           aria-invalid={Boolean(error)}
         />
-        <button type="submit" disabled={!code || busy} className="mt-4 w-full rounded-full bg-pearl py-3.5 font-medium text-abyss transition-opacity disabled:opacity-40">
+        <button type="submit" disabled={!code || busy} className="btn-primary mt-4 w-full rounded-full py-3.5 font-medium transition-opacity disabled:opacity-40">
           {busy ? "בודק…" : "כניסה"}
         </button>
         <p role="alert" className="mt-4 min-h-6 text-center text-[0.9rem] text-danger">

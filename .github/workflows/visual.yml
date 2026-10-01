@@ -20,7 +20,6 @@ jobs:
           --health-cmd "pg_isready -U postgres" --health-interval 5s --health-timeout 5s --health-retries 10
     env:
       DATABASE_URL: postgres://postgres:postgres@localhost:5432/postgres
-      APP_PASSCODE: "1234"
       SESSION_SECRET: visual-only-secret-visual-only-secret
       CRON_SECRET: visual
     steps:

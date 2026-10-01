@@ -1,9 +1,9 @@
 import type { Metadata, Viewport } from "next";
-import { Frank_Ruhl_Libre, IBM_Plex_Sans_Hebrew, Unbounded } from "next/font/google";
+import { Karantina, Rubik, Unbounded } from "next/font/google";
 import "./globals.css";
 
-const plex = IBM_Plex_Sans_Hebrew({ subsets: ["hebrew", "latin"], weight: ["300", "400", "500", "600"], variable: "--font-plex", display: "swap" });
-const frank = Frank_Ruhl_Libre({ subsets: ["hebrew", "latin"], variable: "--font-frank", display: "swap" });
+const rubik = Rubik({ subsets: ["hebrew", "latin"], variable: "--font-rubik", display: "swap" });
+const karantina = Karantina({ subsets: ["hebrew", "latin"], weight: ["400", "700"], variable: "--font-karantina", display: "swap" });
 const unbounded = Unbounded({ subsets: ["latin"], weight: ["400", "500"], variable: "--font-unbounded", display: "swap" });
 
 export const metadata: Metadata = {
@@ -28,17 +28,16 @@ export const viewport: Viewport = {
   initialScale: 1,
   viewportFit: "cover",
   interactiveWidget: "resizes-content",
-  themeColor: [
-    { media: "(prefers-color-scheme: dark)", color: "#0a0f1f" },
-    { media: "(prefers-color-scheme: light)", color: "#eef1f7" },
-  ],
+  themeColor: "#04050d",
+  colorScheme: "dark",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="he" dir="rtl" className={`${plex.variable} ${frank.variable} ${unbounded.variable}`} suppressHydrationWarning>
+    <html lang="he" dir="rtl" className={`${rubik.variable} ${karantina.variable} ${unbounded.variable}`} suppressHydrationWarning>
       <body>
         <div className="atmosphere" aria-hidden />
+        <div className="grain" aria-hidden />
         {children}
       </body>
     </html>
