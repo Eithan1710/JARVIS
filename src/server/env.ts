@@ -13,7 +13,8 @@ const schema = z.object({
   DATABASE_URL: z.string().optional(),
   PGLITE_DIR: z.string().default(".data/pglite"),
 
-  /** Access */
+  /** Access — open by default; set REQUIRE_PASSCODE=true to require APP_PASSCODE. */
+  REQUIRE_PASSCODE: z.string().optional(),
   APP_PASSCODE: z.string().optional(),
   SESSION_SECRET: z.string().optional(),
   ENCRYPTION_KEY: z.string().optional(),

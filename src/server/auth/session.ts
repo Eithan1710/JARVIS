@@ -39,7 +39,10 @@ export async function verifySessionToken(token: string | undefined | null): Prom
   }
 }
 
-/** Auth is required whenever a passcode is configured, and always in production. */
+/**
+ * JARVIS is a single-owner app and opens without a passcode by default.
+ * To lock it again, set REQUIRE_PASSCODE=true together with APP_PASSCODE.
+ */
 export function authRequired(): boolean {
-  return Boolean(process.env.APP_PASSCODE) || process.env.NODE_ENV === "production";
+  return process.env.REQUIRE_PASSCODE === "true" && Boolean(process.env.APP_PASSCODE);
 }

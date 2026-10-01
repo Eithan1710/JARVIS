@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
-import { createSessionToken, SESSION_COOKIE, SESSION_MAX_AGE_S } from "@/server/auth/session";
+import { authRequired, createSessionToken, SESSION_COOKIE, SESSION_MAX_AGE_S } from "@/server/auth/session";
 import { ensureOwner } from "@/server/context";
 import { safeEqual } from "@/server/crypto";
 import { env } from "@/server/env";
@@ -16,6 +16,7 @@ export async function POST(req: NextRequest) {
   if (a && a.until > Date.now()) return jsonError(429, "locked", "יותר מדי ניסיונות. נסה שוב בעוד כמה דקות.");
 
   const { APP_PASSCODE, NODE_ENV, SESSION_SECRET } = env();
+  if (!authRequired()) return NextResponse.json({ data: { ok: true } });
   if (!APP_PASSCODE) {
     if (NODE_ENV === "production") return jsonError(503, "not_configured", "לא הוגדר קוד גישה (APP_PASSCODE) בשרת.");
   } else if (!SESSION_SECRET && NODE_ENV === "production") {
