@@ -65,7 +65,7 @@ Connections (`src/server/connections/registry.ts`) describe external sources and
 
 ## Security
 * Secrets only in server env; nothing sensitive reaches the client bundle.
-* Passcode → signed HTTP-only `SameSite=Lax` cookie (180 days), brute-force throttle, request proxy gates every page/API.
+* Single owner, open by default. Optional lock: `REQUIRE_PASSCODE=true` + `APP_PASSCODE` → signed HTTP-only cookie (180 days), brute-force throttle, request proxy gates every page/API.
 * Every query is scoped by `user_id` via `UserContext`; moving to Supabase Auth changes only `getUserContext()`.
 * The app connects as the schema owner; RLS is enabled with no policies, so Supabase's public REST roles see nothing.
 * Connection tokens are AES-256-GCM encrypted. Logs never contain message content.

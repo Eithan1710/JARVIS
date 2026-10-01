@@ -26,12 +26,12 @@ function greeting() {
 
 /** Starting points — tapping one drops a ready-to-edit sentence into the composer. */
 const IDEAS: { icon: IconName; title: string; hint: string; text: string; color: string }[] = [
-  { icon: "bell", title: "תזכורת", hint: "״תזכיר לי ב־20:00…״", text: "תזכיר לי היום ב־20:00 ", color: "#ffad5c" },
-  { icon: "repeat", title: "הרגל חדש", hint: "״לקרוא כל ערב…״", text: "אני רוצה לבנות הרגל של ", color: "#5ef0b4" },
-  { icon: "target", title: "יעד", hint: "״לרדת 3 ק״ג…״", text: "היעד שלי: ", color: "#a48bff" },
-  { icon: "map", title: "ניווט", hint: "״קח אותי ל…״", text: "תפתח לי ניווט ל", color: "#3fd8ff" },
-  { icon: "music", title: "מוזיקה", hint: "״שים לי lofi…״", text: "תפתח לי ב־Spotify ", color: "#3be37f" },
-  { icon: "globe", title: "מחקר", hint: "״תבדוק לי…״", text: "תבדוק לי ", color: "#ff7fd6" },
+  { icon: "bell", title: "תזכורת", hint: "תזכיר לי ב־20:00…", text: "תזכיר לי היום ב־20:00 ", color: "#ffad5c" },
+  { icon: "repeat", title: "הרגל חדש", hint: "לקרוא כל ערב…", text: "אני רוצה לבנות הרגל של ", color: "#5ef0b4" },
+  { icon: "target", title: "יעד", hint: "לרדת 3 ק״ג…", text: "היעד שלי: ", color: "#a48bff" },
+  { icon: "map", title: "ניווט", hint: "קח אותי ל…", text: "תפתח לי ניווט ל", color: "#3fd8ff" },
+  { icon: "music", title: "מוזיקה", hint: "שים לי lofi…", text: "תפתח לי ב־Spotify ", color: "#3be37f" },
+  { icon: "globe", title: "מחקר", hint: "תבדוק לי…", text: "תבדוק לי ", color: "#ff7fd6" },
 ];
 
 interface Live {
