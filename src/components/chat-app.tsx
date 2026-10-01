@@ -25,13 +25,13 @@ function greeting() {
 }
 
 /** Starting points — tapping one drops a ready-to-edit sentence into the composer. */
-const IDEAS: { icon: IconName; title: string; text: string; color: string }[] = [
-  { icon: "bell", title: "תזכורת", text: "תזכיר לי היום ב־20:00 ", color: "#ffad5c" },
-  { icon: "repeat", title: "הרגל חדש", text: "אני רוצה לבנות הרגל של ", color: "#5ef0b4" },
-  { icon: "target", title: "יעד", text: "היעד שלי: ", color: "#8b6cff" },
-  { icon: "map", title: "ניווט", text: "תפתח לי ניווט ל", color: "#3fd8ff" },
-  { icon: "music", title: "מוזיקה", text: "תפתח לי ב־Spotify ", color: "#3be37f" },
-  { icon: "globe", title: "מחקר", text: "תבדוק לי ", color: "#ff7fd6" },
+const IDEAS: { icon: IconName; title: string; hint: string; text: string; color: string }[] = [
+  { icon: "bell", title: "תזכורת", hint: "״תזכיר לי ב־20:00…״", text: "תזכיר לי היום ב־20:00 ", color: "#ffad5c" },
+  { icon: "repeat", title: "הרגל חדש", hint: "״לקרוא כל ערב…״", text: "אני רוצה לבנות הרגל של ", color: "#5ef0b4" },
+  { icon: "target", title: "יעד", hint: "״לרדת 3 ק״ג…״", text: "היעד שלי: ", color: "#a48bff" },
+  { icon: "map", title: "ניווט", hint: "״קח אותי ל…״", text: "תפתח לי ניווט ל", color: "#3fd8ff" },
+  { icon: "music", title: "מוזיקה", hint: "״שים לי lofi…״", text: "תפתח לי ב־Spotify ", color: "#3be37f" },
+  { icon: "globe", title: "מחקר", hint: "״תבדוק לי…״", text: "תבדוק לי ", color: "#ff7fd6" },
 ];
 
 interface Live {
@@ -53,6 +53,7 @@ export function ChatApp({ lockable }: { lockable: boolean }) {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [conversations, setConversations] = useState<ConversationSummary[] | null>(null);
   const [atBottom, setAtBottom] = useState(true);
+  const [wide, setWide] = useState(false);
   const [hello, setHello] = useState("");
   const [showPushHint, setShowPushHint] = useState(false);
 
@@ -83,6 +84,7 @@ export function ChatApp({ lockable }: { lockable: boolean }) {
   useEffect(() => {
     registerServiceWorker();
     setHello(greeting());
+    setWide(window.innerWidth >= 640);
     const params = new URLSearchParams(location.search);
     const fromUrl = params.get("c");
     const stored = localStorage.getItem(LAST_KEY);
@@ -388,11 +390,11 @@ export function ChatApp({ lockable }: { lockable: boolean }) {
         {empty ? (
           <div className="mx-auto flex min-h-full w-full max-w-[var(--column)] flex-col items-center justify-center pb-6 text-center">
             <div className="relative -mb-6 sm:-mb-4">
-              <Orb size={280} state={working ? "thinking" : "idle"} />
+              <Orb size={wide ? 340 : 290} state={working ? "thinking" : "idle"} />
             </div>
             <h1 className="display gradient-text px-6 text-[4.6rem] sm:text-[6rem]">{hello || "\u00a0"}</h1>
             <p className="mt-3 px-6 text-[1.1rem] text-ink-2">אני כאן. פשוט תגיד מה צריך.</p>
-            <div className="no-scrollbar mt-9 flex w-full snap-x gap-2.5 overflow-x-auto px-5 pb-2 sm:flex-wrap sm:justify-center sm:overflow-visible">
+            <div className="no-scrollbar mt-10 flex w-full snap-x gap-3 overflow-x-auto px-5 pb-3 sm:grid sm:max-w-2xl sm:grid-cols-3 sm:overflow-visible">
               {IDEAS.map((idea, i) => (
                 <button
                   key={idea.title}
@@ -401,13 +403,19 @@ export function ChatApp({ lockable }: { lockable: boolean }) {
                     setText(idea.text);
                     window.dispatchEvent(new Event("jarvis:focus-composer"));
                   }}
-                  className="idea rise flex shrink-0 snap-start items-center gap-2.5 rounded-full py-2 ps-2 pe-4 text-[0.95rem] text-ink"
-                  style={{ animationDelay: `${120 + i * 60}ms` }}
+                  className="idea rise flex w-[9.5rem] shrink-0 snap-start flex-col items-start gap-3 rounded-[22px] p-4 text-start sm:w-auto"
+                  style={{ animationDelay: `${150 + i * 70}ms` }}
                 >
-                  <span className="grid size-8 place-items-center rounded-full" style={{ background: `color-mix(in oklab, ${idea.color} 22%, transparent)`, color: idea.color }}>
-                    <Icon name={idea.icon} size={17} strokeWidth={1.9} />
+                  <span
+                    className="tile grid size-10 place-items-center rounded-[13px]"
+                    style={{ background: `linear-gradient(135deg, color-mix(in oklab, ${idea.color} 85%, white), color-mix(in oklab, ${idea.color} 70%, black))`, color: "#060716", "--tile-glow": `color-mix(in oklab, ${idea.color} 60%, transparent)` } as React.CSSProperties}
+                  >
+                    <Icon name={idea.icon} size={20} strokeWidth={2} />
                   </span>
-                  {idea.title}
+                  <span>
+                    <span className="block text-[1rem] font-medium text-ink">{idea.title}</span>
+                    <span className="mt-0.5 block text-[0.8rem] text-ink-3">{idea.hint}</span>
+                  </span>
                 </button>
               ))}
             </div>

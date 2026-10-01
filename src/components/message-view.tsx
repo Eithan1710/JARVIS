@@ -135,7 +135,7 @@ export function JarvisMessage({ m, fresh }: { m: ChatMessage; fresh?: boolean })
           {kind.label} · {formatTime(m.createdAt)}
         </div>
         <div className="jarvis-text">
-          <Markdown text={m.content} />
+          <Markdown text={m.content.replace(/^[⏰🔁🎯]\uFE0F?\s*/u, "")} />
         </div>
       </div>
     );

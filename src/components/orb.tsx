@@ -38,13 +38,13 @@ float snoise(vec3 v){
   vec4 m=max(.6-vec4(dot(x0,x0),dot(x1,x1),dot(x2,x2),dot(x3,x3)),0.);m=m*m;
   return 42.*dot(m*m,vec4(dot(p0,x0),dot(p1,x1),dot(p2,x2),dot(p3,x3)));
 }
-float fbm(vec3 p){float f=0.,a=.5;for(int i=0;i<4;i++){f+=a*snoise(p);p*=2.02;a*=.5;}return f;}
+float fbm(vec3 p){float f=0.,a=.55;for(int i=0;i<3;i++){f+=a*snoise(p);p*=1.9;a*=.42;}return f;}
 
 void main(){
   vec2 uv=(gl_FragCoord.xy-.5*uRes)/(.5*min(uRes.x,uRes.y));
   float r=length(uv);
   float t=uTime*(.18+.55*uEnergy);
-  float R=.6+.035*sin(uTime*1.3)+.07*uLevel;
+  float R=.64+.025*sin(uTime*1.3)+.07*uLevel;
 
   vec3 cArc=vec3(.25,.85,1.);
   vec3 cPlasma=vec3(.55,.42,1.);
@@ -56,15 +56,15 @@ void main(){
   if(r<R+.004){
     float z=sqrt(max(R*R-r*r,0.));
     vec3 n=vec3(uv,z)/R;
-    vec3 p=n*(1.35+.4*uEnergy)+vec3(0.,0.,t);
+    vec3 p=n*(.75+.3*uEnergy)+vec3(0.,0.,t);
     vec3 q=vec3(fbm(p+vec3(0.,t*.6,0.)),fbm(p+vec3(5.2,1.3,t*.4)),fbm(p+vec3(1.7,9.2,-t*.3)));
-    float f=fbm(p+1.8*q);
-    col=mix(cDeep,cPlasma,smoothstep(-.45,.35,f));
-    col=mix(col,cArc,smoothstep(.05,.75,q.x+.25*f));
-    col=mix(col,cPink,.55*smoothstep(.25,.85,q.y)*(1.-uWarm*.4));
-    col+=cSolar*pow(max(f*q.z,0.),1.4)*(1.1+uWarm*1.6);
+    float f=fbm(p+1.4*q);
+    col=mix(cDeep*2.2,cPlasma,smoothstep(-.7,.45,f));
+    col=mix(col,cArc,.85*smoothstep(-.1,.8,q.x+.3*f));
+    col=mix(col,cPink,.45*smoothstep(.2,.9,q.y)*(1.-uWarm*.4));
+    col+=cSolar*smoothstep(.05,.6,f*q.z+.15*q.z)*(.45+uWarm*.9);
     // brighter core when working / listening
-    col+=vec3(.8,.9,1.)*pow(max(n.z,0.),6.)*(.12+.45*uEnergy+.6*uLevel);
+    col+=vec3(.8,.9,1.)*pow(max(n.z,0.),5.)*(.22+.45*uEnergy+.6*uLevel);
     float fres=pow(1.-n.z,2.2);
     col+=mix(cArc,cPlasma,uv.y*.5+.5)*fres*1.15;
     col+=pow(max(dot(n,normalize(vec3(-.45,.55,.75))),0.),28.)*.55;

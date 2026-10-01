@@ -48,7 +48,7 @@ async function shoot(t) {
   await page.evaluate(() => localStorage.clear());
   await page.goto(`${base}/`);
   await page.waitForTimeout(2500);
-  await page.screenshot({ path: `${out}/${t.name}-1-empty.png` });
+  await page.screenshot({ animations: "disabled", timeout: 90000, path: `${out}/${t.name}-1-empty.png` });
 
   if (!seeded) {
     await fetch(`${base}/api/conversations`); // creates the schema + owner on first use
@@ -57,14 +57,14 @@ async function shoot(t) {
   }
   await page.goto(`${base}/?c=11111111-1111-4111-8111-111111111111`);
   await page.waitForTimeout(1800);
-  await page.screenshot({ path: `${out}/${t.name}-2-conversation.png` });
+  await page.screenshot({ animations: "disabled", timeout: 90000, path: `${out}/${t.name}-2-conversation.png` });
   await page.click('button:has-text("מה עשיתי")');
   await page.waitForTimeout(400);
-  await page.screenshot({ path: `${out}/${t.name}-3-details.png` });
+  await page.screenshot({ animations: "disabled", timeout: 90000, path: `${out}/${t.name}-3-details.png` });
 
   await page.click('button[aria-label="שיחות"]');
   await page.waitForTimeout(900);
-  await page.screenshot({ path: `${out}/${t.name}-4-drawer.png` });
+  await page.screenshot({ animations: "disabled", timeout: 90000, path: `${out}/${t.name}-4-drawer.png` });
   await page.keyboard.press("Escape");
   await page.waitForTimeout(400);
 
@@ -78,14 +78,14 @@ async function shoot(t) {
   await page.fill("textarea", "תזכיר לי ב־20:00 להתקשר לאמא ותשים לי lofi");
   await page.click('button[aria-label="שלח"]');
   await page.waitForTimeout(1200);
-  await page.screenshot({ path: `${out}/${t.name}-5-thinking.png` });
+  await page.screenshot({ animations: "disabled", timeout: 90000, path: `${out}/${t.name}-5-thinking.png` });
   release();
   await page.waitForTimeout(1500);
-  await page.screenshot({ path: `${out}/${t.name}-6-reply.png` });
+  await page.screenshot({ animations: "disabled", timeout: 90000, path: `${out}/${t.name}-6-reply.png` });
 
   // Voice mode (fake microphone).
   await page.click('button[aria-label="דבר עם JARVIS"]');
   await page.waitForTimeout(1800);
-  await page.screenshot({ path: `${out}/${t.name}-7-voice.png` });
+  await page.screenshot({ animations: "disabled", timeout: 90000, path: `${out}/${t.name}-7-voice.png` });
   await context.close();
 }
