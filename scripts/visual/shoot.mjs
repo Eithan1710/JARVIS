@@ -51,6 +51,7 @@ async function shoot(t) {
   await page.screenshot({ path: `${out}/${t.name}-1-empty.png` });
 
   if (!seeded) {
+    await fetch(`${base}/api/conversations`); // creates the schema + owner on first use
     execSync(`psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f scripts/visual/seed.sql`, { stdio: "inherit" });
     seeded = true;
   }
