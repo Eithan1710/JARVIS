@@ -26,10 +26,24 @@ const fakeTurn = [
 ].join("");
 
 let seeded = false;
+let failed = false;
 for (const t of targets) {
+  try {
+    await shoot(t);
+  } catch (e) {
+    failed = true;
+    console.log(`::error::[${t.name}] ${String(e?.message ?? e).split("\n").slice(0, 6).join(" | ")}`);
+  }
+}
+await browser.close();
+console.log("screenshots saved to", out);
+if (failed) process.exit(1);
+
+async function shoot(t) {
   const context = await browser.newContext({ ...t.ctx, permissions: ["microphone"] });
   const page = await context.newPage();
-  page.on("console", (m) => m.type() === "error" && console.log(`[${t.name}] console:`, m.text()));
+  page.on("console", (m) => m.type() === "error" && console.log(`::warning::[${t.name}] console: ${m.text().slice(0, 300)}`));
+  page.on("pageerror", (e) => console.log(`::warning::[${t.name}] pageerror: ${e.message.slice(0, 300)}`));
   await page.goto(`${base}/`);
   await page.evaluate(() => localStorage.clear());
   await page.goto(`${base}/`);
@@ -74,5 +88,3 @@ for (const t of targets) {
   await page.screenshot({ path: `${out}/${t.name}-7-voice.png` });
   await context.close();
 }
-await browser.close();
-console.log("screenshots saved to", out);

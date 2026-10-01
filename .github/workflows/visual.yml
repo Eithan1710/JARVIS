@@ -41,6 +41,7 @@ jobs:
         if: failure()
         run: tail -80 app.log | sed -e ':a' -e 'N' -e '$!ba' -e 's/%/%25/g' -e 's/\n/%0A/g' | sed 's/^/::warning::/'
       - name: Publish
+        if: always()
         run: |
           cd shots
           echo '{"git":{"deploymentEnabled":false}}' > vercel.json
